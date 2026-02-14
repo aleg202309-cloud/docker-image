@@ -1,0 +1,29 @@
+name: Empaquetar Immich para USB
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar imágenes de Immich
+        run: |
+          docker pull ghcr.io/immich-app/immich-server:release
+          docker pull ghcr.io/immich-app/immich-machine-learning:release
+          docker pull tensorchord/pgvecto-rs:pg14-v0.2.0
+          docker pull redis:6.2-alpine
+
+      - name: Crear archivo comprimido (.tar)
+        run: |
+          docker save ghcr.io/immich-app/immich-server:release \
+                      ghcr.io/immich-app/immich-machine-learning:release \
+                      tensorchord/pgvecto-rs:pg14-v0.2.0 \
+                      redis:6.2-alpine \
+                      -o immich_images.tar
+
+      - name: Subir a GitHub (Artefacto)
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-immich-usb
+          path: immich_images.tar
+          retention-days: 1
