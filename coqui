@@ -1,0 +1,19 @@
+name: Empaquetar Coqui TTS
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Coqui TTS
+        run: docker pull ghcr.io/coqui-ai/tts:latest
+
+      - name: Guardar imagen
+        run: docker save ghcr.io/coqui-ai/tts:latest -o coqui_tts.tar
+
+      - name: Subir archivo
+        uses: actions/upload-artifact@v4
+        with:
+          name: coqui-tts-offline
+          path: coqui_tts.tar
