@@ -1,0 +1,35 @@
+name: Empaquetar XTTS v2 para USB
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Imagen y Modelo XTTS
+        run: |
+          # 1. Bajar la imagen oficial
+          docker pull ghcr.io/coqui-ai/tts:latest
+          
+          # 2. Descargar el modelo (el contenedor se cerrará solo al terminar el audio)
+          docker run --name tts_xtts \
+            -e COQUI_TOS_AGREED=1 \
+            ghcr.io/coqui-ai/tts:latest \
+            --model_name tts_models/multilingual/multi-dataset/xtts_v2 \
+            --text "Configurando modelo para mi Ryzen." \
+            --speaker_idx "Claribel Dervla" \
+            --language_idx "es"
+
+          # 3. Guardar el estado del contenedor en una nueva imagen
+          docker commit tts_xtts coqui-xtts-v2
+          
+          # 4. Crear el archivo .tar para el USB
+          docker save coqui-xtts-v2 -o xtts_v2_completo.tar
+
+      - name: Subir el archivo resultante
+        uses: actions/upload-artifact@v4
+        with:
+          name: modelo-xtts-usb
+          path: xtts_v2_completo.tar
+          retention-days: 1
+          
