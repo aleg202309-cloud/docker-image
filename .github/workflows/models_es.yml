@@ -1,4 +1,4 @@
-name: Empaquetar Coqui con Modelos ES
+name: Empaquetar XTTS v2
 on:
   workflow_dispatch:
 
@@ -6,30 +6,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar e Inyectar Modelos
+      - name: Descargar Imagen y Modelo XTTS
         run: |
+          # 1. Bajamos la imagen oficial
           docker pull ghcr.io/coqui-ai/tts:latest
           
-          # Forzamos el uso de bash ignorando el entrypoint por defecto
-          docker run --name tts_prep \
-            --entrypoint /bin/bash \
+          # 2. Ejecutamos el comando que la imagen espera para bajar el modelo
+          # IMPORTANTE: No usamos bash, dejamos que la imagen use su propio motor
+          docker run --name tts_xtts \
             -e COQUI_TOS_AGREED=1 \
             ghcr.io/coqui-ai/tts:latest \
-            -c "tts --model_name tts_models/es/css10/vits --text 'Cargando uno' && \
-                tts --model_name tts_models/es/mai/vits --text 'Cargando dos' && \
-                tts --model_name tts_models/multilingual/multi-dataset/xtts_v2 --text 'Cargando tres'"
+            --model_name tts_models/multilingual/multi-dataset/xtts_v2 \
+            --text "Descargando el mejor modelo para mi Ryzen."
+
+          # 3. Guardamos el contenedor con el modelo ya dentro
+          docker commit tts_xtts coqui-xtts-v2
           
-          # Guardamos el contenedor con los modelos ya "vividos" en su interior
-          docker commit tts_prep tts-es-full
-          docker rm tts_prep
-          
-          # Exportamos para tu USB
-          docker save tts-es-full -o coqui_tts_es_completo.tar
+          # 4. Creamos el archivo .tar
+          docker save coqui-xtts-v2 -o xtts_v2_completo.tar
 
       - name: Subir a GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: coqui-espanol-completo
-          path: coqui_tts_es_completo.tar
+          name: xtts-offline
+          path: xtts_v2_completo.tar
           retention-days: 1
           
