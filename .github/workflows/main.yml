@@ -1,0 +1,24 @@
+name: Empaquetar Label Studio para USB
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Label Studio
+        run: |
+          # Imagen oficial de Heartex Labs
+          docker pull heartexlabs/label-studio:latest
+
+      - name: Crear archivo .tar
+        run: |
+          docker save heartexlabs/label-studio:latest -o label_studio_bundle.tar
+
+      - name: Subir a GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-label-studio-usb
+          path: label_studio_bundle.tar
+          retention-days: 1
+          
