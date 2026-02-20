@@ -1,0 +1,50 @@
+name: Empaquetar Fish Speech para VM
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Imagen de Fish Speech (CPU)
+        run: |
+          docker pull fishaudio/fish-speech:latest-cpu
+
+      - name: Descargar Modelos de Hugging Face (V1.5)
+        run: |
+          # Creamos una carpeta temporal para los modelos
+          mkdir -p checkpoints/fish-speech-1.5
+          cd checkpoints/fish-speech-1.5
+          
+          # Descargamos los archivos esenciales (ajusta la URL si prefieres otra versión)
+          curl -L -o model.pth https://huggingface.co/fishaudio/fish-speech-1.5/resolve/main/model.pth
+          curl -L -o config.json https://huggingface.co/fishaudio/fish-speech-1.5/resolve/main/config.json
+          
+          # Opcional: Descargar el VQGAN (necesario para la fase de decodificación)
+          curl -L -o vqgan.pth https://huggingface.co/fishaudio/fish-speech-1.5/resolve/main/firefly-gan-vq-fsq-8x1024-21hz-generator.pth
+
+      - name: Crear Contenedor Temporal y Mover Modelos
+        run: |
+          # Creamos un contenedor base
+          docker create --name temp-fish fishaudio/fish-speech:latest-cpu
+          
+          # Copiamos los modelos dentro de la estructura de carpetas del contenedor
+          # Nota: La ruta interna suele ser /app/checkpoints
+          docker cp checkpoints temp-fish:/app/
+          
+          # Guardamos los cambios en una nueva imagen local
+          docker commit temp-fish fish-speech-full:ready
+          
+          # Borramos el temporal
+          docker rm temp-fish
+
+      - name: Exportar Imagen Final a .tar
+        run: |
+          docker save fish-speech-full:ready -o fish_speech_bundle.tar
+
+      - name: Subir a GitHub (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fish-speech-completo
+          path: fish_speech_bundle.tar
+          retention-days: 1
