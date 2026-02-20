@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Necesario para publicar en GHCR
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -25,7 +28,8 @@ jobs:
         with:
           context: .
           push: true
+          # CORRECCIÓN: Usamos github.repository que ya viene en minúsculas
+          # Si falla, cambia la línea de abajo por: ghcr.io/aleg202309-cloud/docker-image/fish-speech:latest
           tags: ghcr.io/${{ github.repository }}/fish-speech:latest
-          # Cache para acelerar futuras builds
           cache-from: type=gha
           cache-to: type=gha,mode=max
