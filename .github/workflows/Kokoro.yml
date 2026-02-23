@@ -1,0 +1,25 @@
+name: Empaquetar Kokoro ONNX para AMANDA
+on: workflow_dispatch
+
+jobs:
+  download-kokoro:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Archivos de Kokoro
+        run: |
+          mkdir kokoro_model
+          cd kokoro_model
+          curl -L -O https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model.onnx
+          curl -L -O https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices.json
+          # Cambiamos el nombre para que sea más fácil de identificar
+          mv model.onnx kokoro-v1.0.onnx
+
+      - name: Crear Artefacto Zip
+        run: zip -r kokoro_amanda.zip kokoro_model
+
+      - name: Subir a GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-model-package
+          path: kokoro_amanda.zip
+          
