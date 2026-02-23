@@ -1,0 +1,26 @@
+name: Empaquetar Faster-Whisper para AMANDA
+on: workflow_dispatch
+
+jobs:
+  download-whisper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar git-lfs
+        run: git lfs install
+
+      - name: Clonar Modelo Whisper Medium
+        run: |
+          git clone https://huggingface.co/Systran/faster-whisper-medium
+          # Eliminamos archivos basura de git para que el zip no sea gigante
+          rm -rf faster-whisper-medium/.git
+          rm -rf faster-whisper-medium/.gitattributes
+
+      - name: Crear Artefacto Zip
+        run: zip -r whisper_medium_amanda.zip faster-whisper-medium
+
+      - name: Subir a GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-model-package
+          path: whisper_medium_amanda.zip
+          
