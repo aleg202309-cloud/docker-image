@@ -1,0 +1,27 @@
+name: Empaquetar Seguridad ECAPA para AMANDA
+on: workflow_dispatch
+
+jobs:
+  download-ecapa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Crear Directorio de Seguridad
+        run: mkdir -p ecapa_security
+
+      - name: Descargar Modelo ECAPA-TDNN (ONNX)
+        run: |
+          cd ecapa_security
+          # Descargamos el modelo optimizado para inferencia rápida
+          curl -L -O https://github.com/microsoft/UniSpeech/raw/main/scenarios/speaker_verification/models/ecapa_tdnn.onnx
+          # Descargamos un archivo de configuración de ejemplo si existe o creamos un readme
+          echo "Modelo ECAPA-TDNN para reconocimiento de Administrador" > info.txt
+
+      - name: Crear Artefacto Zip
+        run: zip -r ecapa_amanda.zip ecapa_security
+
+      - name: Subir a GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecapa-model-package
+          path: ecapa_amanda.zip
+          
