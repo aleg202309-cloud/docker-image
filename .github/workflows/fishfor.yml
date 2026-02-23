@@ -22,4 +22,4 @@ jobs:
         with:
           name: motor-docker-fish
           path: fish_engine.tar
-          retention-days: 1:
+          retention-days: 1
