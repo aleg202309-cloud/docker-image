@@ -1,0 +1,23 @@
+name: Exportar Motor Fish Speech
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Imagen Base
+        run: |
+          # Bajamos la versión 1.5 que es la compatible con tus modelos
+          docker pull fishaudio/fish-speech:latest-v1.5-gh
+
+      - name: Guardar en TAR
+        run: |
+          docker save fishaudio/fish-speech:latest-v1.5-gh -o fish_engine.tar
+
+      - name: Subir Artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: motor-docker-fish
+          path: fish_engine.tar
+          retention-days: 1
