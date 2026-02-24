@@ -12,21 +12,30 @@ jobs:
           cat <<EOF > Dockerfile.cpu
           FROM python:3.12-slim
           
-          # 1. Instalamos dependencias del sistema y GIT
+          # 1. Instalamos dependencias del sistema (Añadido PortAudio para PyAudio)
           RUN apt-get update && apt-get install -y \
-              build-essential cmake git libsox-dev ffmpeg libavdevice-dev \
+              build-essential \
+              cmake \
+              git \
+              libsox-dev \
+              ffmpeg \
+              libavdevice-dev \
+              portaudio19-dev \
+              libsndfile1-dev \
               && rm -rf /var/lib/apt/lists/*
 
           WORKDIR /app
 
-          # 2. CLONAMOS EL CÓDIGO DIRECTAMENTE (Sin depender de COPY)
+          # 2. Clonamos el código
           RUN git clone https://github.com/fishaudio/fish-speech.git .
 
-          # 3. Instalamos requerimientos de Python
+          # 3. Preparamos el entorno de Python
           RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+          
+          # Instalamos PyTorch CPU primero
           RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
           
-          # 4. Instalamos el proyecto
+          # 4. Instalamos el proyecto (Ahora PyAudio encontrará sus cabeceras C)
           RUN pip install --no-cache-dir -e .
           
           EXPOSE 7860
