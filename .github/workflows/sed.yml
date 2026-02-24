@@ -1,0 +1,28 @@
+name: Build Docker Image
+
+on:
+  workflow_dispatch: # Permite darle al botón "Play" manualmente
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: actions/checkout@v4
+
+      - name: Build and export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.cpu
+          tags: fish-speech-ready:latest
+          outputs: type=docker,dest=/tmp/fish-speech-ready.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/fish-speech-ready.tar
