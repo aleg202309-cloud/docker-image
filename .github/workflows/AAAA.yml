@@ -1,0 +1,33 @@
+name: Descargar Modelos Applio
+on: 
+  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Crear estructura de carpetas
+        run: |
+          mkdir -p Applio_Models/assets/pretrained_v2
+          mkdir -p Applio_Models/assets/weights
+
+      - name: Descargar Modelos Base (Pretrained)
+        run: |
+          cd Applio_Models/assets/pretrained_v2
+          wget https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/hubert_base.pt
+          wget https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/rmvpe.pt
+          wget https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/fcpe.pt
+          wget https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/f0D40k.pth
+          wget https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/f0G40k.pth
+
+      - name: Comprimir todo en un ZIP
+        run: |
+          zip -r modelos_applio_guia.zip Applio_Models
+
+      - name: Subir Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pack-Modelos-Applio
+          path: modelos_applio_guia.zip
+          retention-days: 5 # Se borrará de GitHub en 5 días para ahorrar espacio
+          
