@@ -11,26 +11,24 @@ jobs:
           mkdir -p Applio_Models/assets/pretrained_v2
           mkdir -p Applio_Models/assets/weights
 
-      - name: Descargar Modelos Base (Mirror Estable)
+      - name: Descargar Modelos Base (Links Blindados)
         run: |
           cd Applio_Models/assets/pretrained_v2
-          # Descarga desde un repositorio alternativo estable de RVC/Applio
-          wget -L -q https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt -O hubert_base.pt
-          wget -L -q https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt -O rmvpe.pt
-          wget -L -q https://huggingface.co/IAHispano/Applio/resolve/36b9e07/assets/pretrained_v2/f0D40k.pth -O f0D40k.pth
-          wget -L -q https://huggingface.co/IAHispano/Applio/resolve/36b9e07/assets/pretrained_v2/f0G40k.pth -O f0G40k.pth
+          # Usamos enlaces directos de repositorios espejo probados
+          curl -L https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/hubert_base.pt?download=true -o hubert_base.pt
+          curl -L https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/rmvpe.pt?download=true -o rmvpe.pt
+          curl -L https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/f0D40k.pth?download=true -o f0D40k.pth
+          curl -L https://huggingface.co/IAHispano/Applio/resolve/main/assets/pretrained_v2/f0G40k.pth?download=true -o f0G40k.pth
 
       - name: Descargar Voz de Narrador (Guía de Museo)
         run: |
           cd Applio_Models/assets/weights
-          # Descargamos un modelo .pth de narrador profesional
-          wget -L -q https://huggingface.co/IAHispano/Applio/resolve/main/assets/weights/v2/spanish_alvaro.pth -O guia_museo.pth
+          # Modelo de voz clara para museo
+          curl -L https://huggingface.co/IAHispano/Applio/resolve/main/assets/weights/v2/spanish_alvaro.pth?download=true -o guia_museo.pth
 
-      - name: Verificar archivos
+      - name: Verificar descargas y tamaños
         run: |
-          echo "Contenido de pretrained_v2:"
           ls -lh Applio_Models/assets/pretrained_v2
-          echo "Contenido de weights:"
           ls -lh Applio_Models/assets/weights
 
       - name: Comprimir todo en un ZIP
@@ -40,7 +38,7 @@ jobs:
       - name: Subir Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Pack-Modelos-Applio-Voz
+          name: Pack-Modelos-Applio-Final
           path: modelos_applio_guia.zip
           retention-days: 1
           
