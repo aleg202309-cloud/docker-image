@@ -1,0 +1,21 @@
+# --- Interfaz y Red ---
+streamlit==1.32.0
+extra-streamlit-components
+passlib[bcrypt]
+
+# --- Visión y HTR ---
+pymupdf
+opencv-python
+kraken
+
+# --- Inteligencia y Datos ---
+ollama
+sqlalchemy
+chromadb
+python-dotenv
+
+# --- Audio (AMANDA) ---
+faster-whisper
+kokoro-onnx
+sounddevice
+numpy
