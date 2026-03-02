@@ -1,22 +1,13 @@
-# --- Interfaz y Red ---
 streamlit==1.32.0
 extra-streamlit-components
 passlib[bcrypt]
-
-# --- Visión y HTR ---
-# Usamos opencv-python-headless porque es más ligero y estable en servidores
-opencv-python-headless
 pymupdf
-# Instalaremos kraken sin fijar versión para que el resolver trabaje mejor
+opencv-python-headless
 kraken
-
-# --- Inteligencia y Datos ---
 ollama
 sqlalchemy
 chromadb
 python-dotenv
-
-# --- Audio (AMANDA) ---
 faster-whisper
 kokoro-onnx
 sounddevice
