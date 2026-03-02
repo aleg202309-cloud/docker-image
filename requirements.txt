@@ -6,9 +6,11 @@ opencv-python-headless
 kraken
 ollama
 sqlalchemy
-chromadb
 python-dotenv
 faster-whisper
 kokoro-onnx
 sounddevice
 numpy<2.0.0
+# Quitamos ChromaDB temporalmente para que el pack base funcione
+# O lo instalamos sin fijar versión
+chromadb
