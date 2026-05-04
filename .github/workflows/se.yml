@@ -1,0 +1,25 @@
+name: Preparar Imagen OCR-D Browser
+on: 
+  workflow_dispatch: # Te permite ejecutarlo manualmente con un botón
+
+env:
+  # Evita el aviso de obsolescencia de Node.js en GitHub Actions
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  descargar-y-comprimir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Descargar ocrd/browser desde Docker Hub
+        run: docker pull ocrd/browser:latest
+
+      - name: 2. Empaquetar y comprimir para el Ryzen
+        run: |
+          docker save ocrd/browser:latest | gzip > ocrd_browser_latest.tar.gz
+
+      - name: 3. Subir como archivo descargable (Artefacto)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocrd-browser-tarball
+          path: ocrd_browser_latest.tar.gz
+          retention-days: 3 # Se borra en 3 días para no saturar tu GitHub
