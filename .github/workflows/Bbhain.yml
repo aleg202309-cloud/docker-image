@@ -1,0 +1,29 @@
+name: Generar Imagen OCR-D
+on: 
+  workflow_dispatch: # Permite ejecutar el proceso manualmente con un clic
+
+env:
+  # Fuerza el uso de Node 24 para evitar las advertencias de obsolescencia
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Descargar imagen desde Docker Hub
+        run: docker pull ocrd/browser:latest
+
+      - name: Comprimir imagen a formato tar.gz
+        run: |
+          docker save ocrd/browser:latest | gzip > ocrd_browser_latest.tar.gz
+
+      - name: Subir imagen como Artefacto (Descargable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocrd-tarball
+          path: ocrd_browser_latest.tar.gz
+          retention-days: 3 # El archivo se borrará de GitHub en 3 días para no ocupar espacio
+      
