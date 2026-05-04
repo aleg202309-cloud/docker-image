@@ -1,0 +1,17 @@
+name: Descargar OCR-D Browser
+on: [workflow_dispatch]
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull Image
+        run: docker pull ocrd/browser:latest
+      - name: Export
+        run: docker save ocrd/browser:latest | gzip > ocrd_browser.tar.gz
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tarball
+          path: ocrd_browser.tar.gz
