@@ -1,0 +1,24 @@
+name: Descargar TTS-Generation-WebUI
+
+on:
+  workflow_dispatch: # Permite ejecutar la acción manualmente con un botón
+
+jobs:
+  descargar_empaquetar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar el repositorio oficial
+        run: |
+          # Clonamos solo la última versión (depth 1) para hacerlo más rápido
+          git clone --depth 1 https://github.com/rsxdalv/tts-generation-webui.git
+
+      - name: Comprimir la carpeta en un ZIP
+        run: |
+          zip -r TTS-Generation-WebUI-Local.zip tts-generation-webui/
+
+      - name: Subir el archivo ZIP como Artefacto para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: TTS-Generation-WebUI-Windows
+          path: TTS-Generation-WebUI-Local.zip
+          retention-days: 5 # Tienes 5 días para descargarlo antes de que GitHub lo borre
