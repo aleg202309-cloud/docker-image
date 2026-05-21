@@ -1,0 +1,31 @@
+name: TTS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  descargar_imagen_pesada:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Liberar espacio en el servidor de GitHub (Obligatorio)
+        run: |
+          # Borramos herramientas que no usaremos para hacer espacio para la IA
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+          df -h
+
+      - name: Descargar la imagen de Docker (La descarga pesada)
+        run: |
+          docker pull ghcr.io/rsxdalv/tts-generation-webui:main
+
+      - name: Exportar y comprimir la imagen
+        run: |
+          # Empaquetamos la imagen que Docker acaba de bajar en un archivo comprimido
+          docker save ghcr.io/rsxdalv/tts-generation-webui:main | gzip > tts-docker-image.tar.gz
+
+      - name: Subir la imagen empaquetada como Artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: Imagen-Docker-TTS-Completa
+          path: tts-docker-image.tar.gz
+          retention-days: 3
