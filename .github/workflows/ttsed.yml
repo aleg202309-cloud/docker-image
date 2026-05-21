@@ -7,30 +7,34 @@ jobs:
   descargar_pesados:
     runs-on: ubuntu-latest
     steps:
-      - name: Liberar espacio en el servidor (Obligatorio)
+      - name: Liberar espacio en el servidor
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt-get clean
 
-      - name: Descargar los modelos a una carpeta local
+      - name: Instalar libreria base de Hugging Face
+        run: pip install huggingface_hub
+
+      - name: Descargar modelos con Python (Método infalible)
         run: |
-          # Creamos la carpeta donde se guardarán los modelos
+          # Creamos la carpeta de caché
           mkdir -p ./hf_cache
-          
-          # Le decimos a la herramienta 'hf' que use esta carpeta como destino
           export HF_HOME=$(pwd)/hf_cache
           
-          # Descargamos los modelos base de Bark con el nuevo comando
-          echo "Descargando Bark..."
-          hf download suno/bark
+          # Ejecutamos un pequeño script de Python directamente aquí
+          python -c "
+          from huggingface_hub import snapshot_download
           
-          # Descargamos los modelos base de Tortoise con el nuevo comando
-          echo "Descargando Tortoise..."
-          hf download jbetker/tortoise-tts-v2
+          print('Descargando Bark...')
+          snapshot_download(repo_id='suno/bark')
+          
+          print('Descargando Tortoise...')
+          snapshot_download(repo_id='jbetker/tortoise-tts-v2')
+          print('¡Descargas completadas con éxito!')
+          "
 
       - name: Comprimir los modelos
         run: |
-          # Usamos tar.gz para comprimir manteniendo los permisos de Linux
           tar -czf modelos-tts-cache.tar.gz ./hf_cache
 
       - name: Subir como artefacto para descargar
