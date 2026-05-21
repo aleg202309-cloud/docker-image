@@ -12,28 +12,25 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt-get clean
 
-      - name: Instalar gestor de descargas de Hugging Face
-        run: pip install huggingface_hub
-
       - name: Descargar los modelos a una carpeta local
         run: |
           # Creamos la carpeta donde se guardarán los modelos
           mkdir -p ./hf_cache
           
-          # Le decimos a Hugging Face que use esta carpeta como destino
+          # Le decimos a la herramienta 'hf' que use esta carpeta como destino
           export HF_HOME=$(pwd)/hf_cache
           
-          # Descargamos los modelos base de Bark
+          # Descargamos los modelos base de Bark con el nuevo comando
           echo "Descargando Bark..."
-          huggingface-cli download suno/bark
+          hf download suno/bark
           
-          # Descargamos los modelos base de Tortoise
+          # Descargamos los modelos base de Tortoise con el nuevo comando
           echo "Descargando Tortoise..."
-          huggingface-cli download jbetker/tortoise-tts-v2
+          hf download jbetker/tortoise-tts-v2
 
       - name: Comprimir los modelos
         run: |
-          # Usamos tar.gz porque mantiene los permisos de los archivos intactos para Linux
+          # Usamos tar.gz para comprimir manteniendo los permisos de Linux
           tar -czf modelos-tts-cache.tar.gz ./hf_cache
 
       - name: Subir como artefacto para descargar
