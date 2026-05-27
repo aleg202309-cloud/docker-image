@@ -1,0 +1,37 @@
+name: Empaquetar Imágenes de InvenioILS (Optimizado)
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  build-tarball:
+    name: Crear Paquete de Imágenes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar imágenes desde Docker Hub
+        run: |
+          echo "Descargando servicios base pesados..."
+          docker pull postgres:14
+          docker pull opensearchproject/opensearch:2.11.0
+          docker pull redis:7
+          docker pull rabbitmq:3-management
+
+      - name: Guardar y comprimir al vuelo (Ahorra espacio en disco)
+        run: |
+          echo "Empaquetando y comprimiendo en tiempo real..."
+          docker save \
+            postgres:14 \
+            opensearchproject/opensearch:2.11.0 \
+            redis:7 \
+            rabbitmq:3-management | gzip > invenio-infra.tar.gz
+          
+          echo "Tamaño final del paquete comprimido:"
+          du -sh invenio-infra.tar.gz
+
+      - name: Subir archivo empaquetado a GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-invenio-infra-imagenes
+          path: invenio-infra.tar.gz
+          retention-days: 1
