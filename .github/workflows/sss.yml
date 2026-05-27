@@ -1,14 +1,14 @@
 name: Cache InvenioILS Images to GHCR
 
 on:
-  workflow_dispatch: # Permite ejecutar el flujo manualmente con un botón desde GitHub
+  workflow_dispatch: 
 
 jobs:
   pull-and-push-images:
     name: Descargar y guardar imágenes
     runs-on: ubuntu-latest
     permissions:
-      packages: write # Vital para poder guardar imágenes en GitHub Container Registry
+      packages: write 
       contents: read
 
     steps:
@@ -17,20 +17,18 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} # Token automático, no tienes que configurarlo
+          password: ${{ secrets.GITHUB_TOKEN }} 
 
-      - name: Descargar imágenes del ecosistema InvenioILS
+      - name: Descargar imágenes de infraestructura pesada
         run: |
-          echo "Descargando imágenes originales..."
+          echo "Descargando servicios base..."
           docker pull postgres:14
           docker pull opensearchproject/opensearch:2.11.0
           docker pull redis:7
           docker pull rabbitmq:3-management
-          docker pull inveniosoftware/centos8-python3.9
 
       - name: Etiquetar imágenes para tu registro personal
         run: |
-          # GHCR exige que el nombre de usuario esté en minúsculas. Esto lo asegura.
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           
           echo "Etiquetando para ghcr.io/$OWNER..."
@@ -38,7 +36,6 @@ jobs:
           docker tag opensearchproject/opensearch:2.11.0 ghcr.io/$OWNER/invenio-opensearch:2.11.0
           docker tag redis:7 ghcr.io/$OWNER/invenio-redis:7
           docker tag rabbitmq:3-management ghcr.io/$OWNER/invenio-rabbitmq:3-management
-          docker tag inveniosoftware/centos8-python3.9 ghcr.io/$OWNER/invenio-base:latest
 
       - name: Subir imágenes a GitHub Container Registry
         run: |
@@ -49,4 +46,3 @@ jobs:
           docker push ghcr.io/$OWNER/invenio-opensearch:2.11.0
           docker push ghcr.io/$OWNER/invenio-redis:7
           docker push ghcr.io/$OWNER/invenio-rabbitmq:3-management
-          docker push ghcr.io/$OWNER/invenio-base:latest
