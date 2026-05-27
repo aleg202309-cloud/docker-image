@@ -1,48 +1,41 @@
-name: Cache InvenioILS Images to GHCR
+name: Empaquetar Imágenes de InvenioILS
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch: # Te permite activar el empaquetado manualmente desde la pestaña Actions
 
 jobs:
-  pull-and-push-images:
-    name: Descargar y guardar imágenes
+  build-tarball:
+    name: Crear Paquete de Imágenes
     runs-on: ubuntu-latest
-    permissions:
-      packages: write 
-      contents: read
 
     steps:
-      - name: Iniciar sesión en GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} 
-
-      - name: Descargar imágenes de infraestructura pesada
+      - name: Descargar imágenes desde Docker Hub
         run: |
-          echo "Descargando servicios base..."
+          echo "Descargando servicios base pesados..."
           docker pull postgres:14
           docker pull opensearchproject/opensearch:2.11.0
           docker pull redis:7
           docker pull rabbitmq:3-management
 
-      - name: Etiquetar imágenes para tu registro personal
+      - name: Guardar y empaquetar en un único archivo TAR
         run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "Empaquetando todas las imágenes en un solo archivo..."
+          docker save \
+            postgres:14 \
+            opensearchproject/opensearch:2.11.0 \
+            redis:7 \
+            rabbitmq:3-management \
+            -o invenio-infra.tar
           
-          echo "Etiquetando para ghcr.io/$OWNER..."
-          docker tag postgres:14 ghcr.io/$OWNER/invenio-postgres:14
-          docker tag opensearchproject/opensearch:2.11.0 ghcr.io/$OWNER/invenio-opensearch:2.11.0
-          docker tag redis:7 ghcr.io/$OWNER/invenio-redis:7
-          docker tag rabbitmq:3-management ghcr.io/$OWNER/invenio-rabbitmq:3-management
+          echo "Comprimiendo el archivo para reducir su tamaño (esto tomará un par de minutos)..."
+          gzip invenio-infra.tar
+          
+          echo "Tamaño final del paquete:"
+          du -sh invenio-infra.tar.gz
 
-      - name: Subir imágenes a GitHub Container Registry
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          
-          echo "Subiendo a tu cuenta de GitHub..."
-          docker push ghcr.io/$OWNER/invenio-postgres:14
-          docker push ghcr.io/$OWNER/invenio-opensearch:2.11.0
-          docker push ghcr.io/$OWNER/invenio-redis:7
-          docker push ghcr.io/$OWNER/invenio-rabbitmq:3-management
+      - name: Subir archivo empaquetado a GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-invenio-infra-imagenes
+          path: invenio-infra.tar.gz
+          retention-days: 3 # Se guardará durante 3 días para no saturar el almacenamiento de tu repositorio
