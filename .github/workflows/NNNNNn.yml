@@ -1,0 +1,65 @@
+name: Build Invenio Package
+
+on:
+  push:
+    branches: [ main, master ]  # Cambia esto si tu rama principal se llama diferente
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 1. Descargar el código del repositorio
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Configurar Python en una versión estable para Invenio
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pipenv' # Optimiza la velocidad guardando el caché de Python
+
+      # 3. Configurar Node.js (Obligatorio para compilar la interfaz de Invenio)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Versión recomendada para compilar los assets de Invenio v4
+
+      # 4. Instalar Pipenv y dependencias de Python
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv
+          # Forzamos la instalación limpia usando el lockfile
+          pipenv install --deploy --dev
+
+      # 5. Inyectar correcciones de compatibilidad que fallaban localmente
+      - name: Inject critical patches
+        run: |
+          pipenv run pip install "wtforms>=3.0.0" sentry-sdk
+
+      # 6. Compilar los Assets (Estilos, JavaScript, React)
+      # Aquí es donde GitHub Actions brilla haciendo el trabajo pesado por ti
+      - name: Build Web Assets
+        env:
+          INVENIO_INSTANCE_PATH: ${{ github.workspace }}/instance
+        run: |
+          pipenv run invenio collect -v
+          pipenv run invenio assets build
+
+      # 7. Empaquetar todo en un ZIP limpio (Excluyendo carpetas basura como .git)
+      - name: Create Production Artifact
+        run: |
+          sudo apt-get install -y zip
+          zip -r invenio-build.zip . -x "*.git*" "node_modules/*" "__pycache__/*"
+
+      # 8. Subir el ZIP a GitHub para que lo descargues con un clic
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: invenio-ready-package
+          path: invenio-build.zip
+          retention-days: 7 # El archivo se guardará por 7 días
