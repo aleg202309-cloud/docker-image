@@ -15,46 +15,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Configurar Python 3.9 (Obligatorio para Invenio v4)
+      # 2. Configurar Python 3.9
       - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      # 3. Configurar Node.js (Requerido para la interfaz visual)
+      # 3. Configurar Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      # 4. Instalar Pipenv y forzar el uso de Python 3.9 sin bloqueos estrictos
+      # 4. Instalar Pipenv e Invenio a la fuerza (Modo Rápido)
       - name: Install Python and Invenio Core
         run: |
           python -m pip install --upgrade pip
           pip install pipenv
-          
-          # Forzamos a pipenv a crear la burbuja usando la ruta exacta de Python 3.9
           pipenv --python $(which python)
-          
-          # Usamos 'pip install' DENTRO de pipenv para saltarnos el validador rígido
-          # Esto evita que 'pipenv lock' destruya el proceso por choques de sub-dependencias
+          # Usamos --use-deprecated=legacy-resolver solo si es necesario para acelerar la descarga
           pipenv run pip install invenio-app-ils==4.0.0 "wtforms>=3.0.0" sentry-sdk
 
-      # 5. Compilar los Assets Visuales
+      # 5. Compilar los Assets Visuales (Agilizado)
       - name: Build Web Assets
         env:
           INVENIO_INSTANCE_PATH: ${{ github.workspace }}/instance
+          NODE_ENV: production
         run: |
           pipenv run invenio collect -v
+          # El comando 'assets build' compila los estilos de tu biblioteca
           pipenv run invenio assets build
 
-      # 6. Empaquetar el proyecto en un archivo ZIP listo para descargar
+      # 6. Empaquetar el proyecto listo para tu máquina local
       - name: Create Production Artifact
         run: |
           sudo apt-get install -y zip
           zip -r invenio-build.zip . -x "*.git*" "node_modules/*" "__pycache__/*"
 
-      # 7. Guardar el paquete en GitHub Actions por 7 días
+      # 7. Subir el ZIP a GitHub
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
