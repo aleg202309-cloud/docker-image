@@ -27,19 +27,19 @@ jobs:
         with:
           node-version: '18'
 
-      # 4. Instalar Pipenv y la librería principal de Invenio de forma explícita
+      # 4. Instalar Pipenv y la librería principal de Invenio
       - name: Install Python and Invenio Core
         run: |
           python -m pip install --upgrade pip
           pip install pipenv
-          # Forzamos la instalación directa de Invenio ILS v4 y sus parches críticos
           pipenv install invenio-app-ils==4.0.0 "wtforms>=3.0.0" sentry-sdk --dev
 
-      # 5. Compilar los Assets Visuales (Usando el ejecutable directo del entorno)
+      # 5. Compilar los Assets Visuales (Usando el ejecutable directo)
       - name: Build Web Assets
         env:
           INVENIO_INSTANCE_PATH: ${{ github.workspace }}/instance
         run: |
+          # Usamos el ejecutable directo que Pipenv garantiza en su entorno
           pipenv run invenio collect -v
           pipenv run invenio assets build
 
@@ -56,3 +56,4 @@ jobs:
           name: invenio-ready-package
           path: invenio-build.zip
           retention-days: 7
+          
