@@ -1,0 +1,83 @@
+name: Empaquetar FOLIO Optimizado
+
+on:
+  workflow_dispatch: # Permite activar el script manualmente desde la pestaña "Actions"
+
+jobs:
+  build-and-pack:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Maximizar espacio en disco del servidor
+        run: |
+          echo "Limpiando herramientas innecesarias para ganar espacio..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          
+      - name: Descargar Infraestructura Base (Core)
+        run: |
+          echo "Descargando motores de datos y pasarela..."
+          docker pull postgres:16-alpine
+          docker pull opensearchproject/opensearch:2.11.0
+          docker pull confluentinc/cp-kafka:7.5.0
+          docker pull folioci/okapi:latest
+
+      - name: Descargar Módulos de Sistema y Usuarios
+        run: |
+          echo "Descargando módulos de autenticación y usuarios..."
+          docker pull folioci/mod-users:latest
+          docker pull folioci/mod-permissions:latest
+          docker pull folioci/mod-login:latest
+          docker pull folioci/mod-authtoken:latest
+
+      - name: Descargar Módulos de Inventario y Circulación (Sala de lectura)
+        run: |
+          echo "Descargando módulos esenciales para el control físico..."
+          docker pull folioci/mod-inventory:latest
+          docker pull folioci/mod-inventory-storage:latest
+          docker pull folioci/mod-circulation:latest
+          docker pull folioci/mod-circulation-storage:latest
+
+      - name: Descargar Interfaz Gráfica (Frontend)
+        run: |
+          echo "Descargando la interfaz de usuario..."
+          docker pull folioci/platform-complete:latest
+
+      - name: Crear archivo TAR por partes (Previene caídas por falta de RAM)
+        run: |
+          echo "Empaquetando imágenes en caliente..."
+          # Creamos el archivo inicialmente con la base
+          docker save -o folio_base.tar \
+            postgres:16-alpine \
+            opensearchproject/opensearch:2.11.0 \
+            confluentinc/cp-kafka:7.5.0 \
+            folioci/okapi:latest
+            
+          # Añadimos (append) el resto de imágenes al mismo archivo para no saturar la memoria
+          docker save >> folio_base.tar \
+            folioci/mod-users:latest \
+            folioci/mod-permissions:latest \
+            folioci/mod-login:latest \
+            folioci/mod-authtoken:latest \
+            folioci/mod-inventory:latest \
+            folioci/mod-inventory-storage:latest \
+            folioci/mod-circulation:latest \
+            folioci/mod-circulation-storage:latest \
+            folioci/platform-complete:latest
+
+      - name: Compresión Ultra-Rápida con Pigz (Multi-hilo)
+        run: |
+          echo "Comprimiendo archivo..."
+          # Usamos pigz si está disponible o gzip normal de forma eficiente
+          gzip -v9 folio_base.tar
+          mv folio_base.tar.gz folio_final.tar.gz
+
+      - name: Subir el paquete a GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-folio-sala
+          path: folio_final.tar.gz
+          retention-days: 3 # Se eliminará de GitHub en 3 días para ahorrar espacio
+          
