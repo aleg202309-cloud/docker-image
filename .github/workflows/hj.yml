@@ -1,0 +1,56 @@
+name: Empaquetar FOLIO Completo (Offline Total)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-pack:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Maximizar espacio en disco
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "/usr/local/share/boost"
+          
+      - name: Descargar Imágenes de Docker
+        run: |
+          docker pull postgres:16-alpine
+          docker pull opensearchproject/opensearch:2.11.0
+          docker pull confluentinc/cp-kafka:7.5.0
+          docker pull folioci/okapi:latest
+          docker pull folioci/mod-users:latest
+          docker pull folioci/mod-permissions:latest
+          docker pull folioci/mod-login:latest
+          docker pull folioci/mod-authtoken:latest
+          docker pull folioci/mod-inventory:latest
+          docker pull folioci/mod-inventory-storage:latest
+          docker pull folioci/mod-circulation:latest
+          docker pull folioci/mod-circulation-storage:latest
+          docker pull folioci/platform-complete:latest
+
+      - name: Descargar Configuración de Despliegue (Docker Compose)
+        run: |
+          echo "Descargando el plano de configuración desde el repositorio oficial..."
+          mkdir files_to_export
+          # Descargamos directamente el archivo docker-compose.yml oficial de FOLIO
+          curl -sSL https://raw.githubusercontent.com/folio-org/folio-helm/master/docker-compose/docker-compose.yml -o files_to_export/docker-compose.yml
+
+      - name: Crear archivo TAR de las imágenes
+        run: |
+          docker save -o files_to_export/folio_images.tar \
+            postgres:16-alpine opensearchproject/opensearch:2.11.0 confluentinc/cp-kafka:7.5.0 folioci/okapi:latest \
+            folioci/mod-users:latest folioci/mod-permissions:latest folioci/mod-login:latest folioci/mod-authtoken:latest \
+            folioci/mod-inventory:latest folioci/mod-inventory-storage:latest folioci/mod-circulation:latest \
+            folioci/mod-circulation-storage:latest folioci/platform-complete:latest
+
+      - name: Comprimir Todo Juntos (Imágenes + Configuración)
+        run: |
+          # Creamos un único archivo comprimido que contiene las imágenes y el docker-compose.yml
+          tar -czf todo_en_uno_folio.tar.gz -C files_to_export .
+
+      - name: Subir el paquete final
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-folio-offline-total
+          path: todo_en_uno_folio.tar.gz
+          retention-days: 1
