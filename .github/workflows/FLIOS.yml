@@ -1,0 +1,39 @@
+name: Empaquetar Imagenes FOLIO
+
+# El script se ejecutará automáticamente cada vez que hagas un "push" o puedes activarlo manualmente
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-pack:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Descargar el código de tu repositorio
+    - name: Clonar repositorio
+      uses: actions/checkout@v4
+
+    # 2. Descargar las imágenes oficiales desde Docker Hub a la máquina de GitHub
+    - name: Descargar imágenes de FOLIO
+      run: |
+        docker compose -f docker-compose.images.yml pull
+
+    # 3. Crear una carpeta temporal y guardar cada imagen en formato .tar
+    - name: Guardar imágenes en archivos .tar
+      run: |
+        mkdir -p folio-packages
+        docker save folioci/okapi:latest -o folio-packages/okapi.tar
+        docker save folioci/mod-authtoken:latest -o folio-packages/mod-authtoken.tar
+        docker save folioci/mod-configuration:latest -o folio-packages/mod-configuration.tar
+        docker save folioci/mod-users:latest -o folio-packages/mod-users.tar
+        docker save folioci/stripes:latest -o folio-packages/stripes.tar
+
+    # 4. Comprimir toda la carpeta en un solo archivo ZIP para facilitar la descarga
+    - name: Subir paquetes como artefacto de GitHub
+      uses: actions/upload-artifact@v4
+      with:
+        name: paquetes-folio-tar
+        path: folio-packages/
+        retention-days: 7
