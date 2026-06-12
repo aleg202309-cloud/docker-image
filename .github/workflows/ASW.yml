@@ -1,0 +1,33 @@
+name: Descargar SOLO Modulos Faltantes FOLIO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-faltantes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar solo los 4 modulos que faltan
+        run: |
+          docker pull folioci/mod-users:latest
+          docker pull folioci/mod-inventory:latest
+          docker pull folioci/mod-circulation:latest
+          docker pull folioci/platform-complete:latest
+
+      - name: Empaquetar en un archivo ligero
+        run: |
+          docker save -o modulos_faltantes.tar \
+            folioci/mod-users:latest \
+            folioci/mod-inventory:latest \
+            folioci/mod-circulation:latest \
+            folioci/platform-complete:latest
+
+      - name: Comprimir
+        run: gzip -9 modulos_faltantes.tar
+
+      - name: Subir a Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rescate-folio
+          path: modulos_faltantes.tar.gz
+          retention-days: 1
