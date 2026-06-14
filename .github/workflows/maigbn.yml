@@ -1,4 +1,4 @@
-name: Empaquetar Stack Completo eScriptorium (Kraken 7) - Anti Bloqueos
+name: Empaquetar Stack Completo eScriptorium (Kraken 7) - Oficial
 
 on:
   workflow_dispatch:
@@ -18,15 +18,30 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - name: Descargar imágenes base (Espejo GHCR - Sin Timeouts)
+      - name: Descargar imágenes base (GitLab INRIA con Reintentos)
+        # Este bloque intentará descargar la imagen hasta 5 veces si detecta un timeout
         run: |
-          echo "Descargando App y Celery desde el registro interno de GitHub..."
-          docker pull ghcr.io/ub-mannheim/escriptorium/app:latest
-          docker pull ghcr.io/ub-mannheim/escriptorium/celery:latest
+          echo "Descargando imagen App..."
+          n=0
+          until [ "$n" -ge 5 ]
+          do
+             docker pull registry.gitlab.inria.fr/scripta/escriptorium/app:latest && break
+             n=$((n+1))
+             echo "Intento $n fallido por timeout. Esperando 15 segundos para reintentar..."
+             sleep 15
+          done
+          if [ "$n" -ge 5 ]; then echo "Error crítico: No se pudo descargar App tras 5 intentos."; exit 1; fi
           
-          echo "Renombrando imágenes para mantener compatibilidad con tu docker-compose original..."
-          docker tag ghcr.io/ub-mannheim/escriptorium/app:latest registry.gitlab.inria.fr/scripta/escriptorium/app:latest
-          docker tag ghcr.io/ub-mannheim/escriptorium/celery:latest registry.gitlab.inria.fr/scripta/escriptorium/celery:latest
+          echo "Descargando imagen Celery..."
+          n=0
+          until [ "$n" -ge 5 ]
+          do
+             docker pull registry.gitlab.inria.fr/scripta/escriptorium/celery:latest && break
+             n=$((n+1))
+             echo "Intento $n fallido por timeout. Esperando 15 segundos para reintentar..."
+             sleep 15
+          done
+          if [ "$n" -ge 5 ]; then echo "Error crítico: No se pudo descargar Celery tras 5 intentos."; exit 1; fi
 
       - name: Descargar imágenes de infraestructura y monitoreo
         run: |
