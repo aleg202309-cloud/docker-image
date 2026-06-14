@@ -1,0 +1,61 @@
+name: Empaquetar Stack Completo eScriptorium (Kraken 7)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Liberar espacio en el servidor de GitHub
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+      - name: Descargar imágenes base de eScriptorium (GitLab)
+        run: |
+          echo "Descargando App y Celery (Kraken 7)..."
+          docker pull registry.gitlab.inria.fr/scripta/escriptorium/app:latest
+          docker pull registry.gitlab.inria.fr/scripta/escriptorium/celery:latest
+
+      - name: Descargar imágenes de infraestructura (Docker Hub)
+        run: |
+          echo "Descargando Nginx, Postgres, Redis y Elasticsearch..."
+          docker pull nginx:alpine
+          docker pull postgres:13
+          docker pull redis:alpine
+          docker pull elasticsearch:7.17.10
+          
+      - name: Descargar imágenes de monitoreo (Prometheus/Alertmanager)
+        run: |
+          echo "Descargando stack de alertas..."
+          docker pull prom/prometheus:latest
+          docker pull prom/alertmanager:latest
+
+      - name: Empaquetar TODAS las imágenes en un solo archivo
+        run: |
+          echo "Comprimiendo el ecosistema completo. Esto tomará unos minutos..."
+          docker save \
+            registry.gitlab.inria.fr/scripta/escriptorium/app:latest \
+            registry.gitlab.inria.fr/scripta/escriptorium/celery:latest \
+            nginx:alpine \
+            postgres:13 \
+            redis:alpine \
+            elasticsearch:7.17.10 \
+            prom/prometheus:latest \
+            prom/alertmanager:latest \
+            | gzip > escriptorium_full_stack.tar.gz
+
+      - name: Subir empaquetado como Artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: escriptorium-full-stack
+          path: escriptorium_full_stack.tar.gz
+          retention-days: 3
+          
