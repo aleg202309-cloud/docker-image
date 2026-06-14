@@ -1,4 +1,4 @@
-name: Empaquetar Stack Completo eScriptorium (Kraken 7)
+name: Empaquetar Stack Completo eScriptorium (Kraken 7) - Anti Bloqueos
 
 on:
   workflow_dispatch:
@@ -18,29 +18,29 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - name: Descargar imágenes base de eScriptorium (GitLab)
+      - name: Descargar imágenes base (Espejo GHCR - Sin Timeouts)
         run: |
-          echo "Descargando App y Celery (Kraken 7)..."
-          docker pull registry.gitlab.inria.fr/scripta/escriptorium/app:latest
-          docker pull registry.gitlab.inria.fr/scripta/escriptorium/celery:latest
+          echo "Descargando App y Celery desde el registro interno de GitHub..."
+          docker pull ghcr.io/ub-mannheim/escriptorium/app:latest
+          docker pull ghcr.io/ub-mannheim/escriptorium/celery:latest
+          
+          echo "Renombrando imágenes para mantener compatibilidad con tu docker-compose original..."
+          docker tag ghcr.io/ub-mannheim/escriptorium/app:latest registry.gitlab.inria.fr/scripta/escriptorium/app:latest
+          docker tag ghcr.io/ub-mannheim/escriptorium/celery:latest registry.gitlab.inria.fr/scripta/escriptorium/celery:latest
 
-      - name: Descargar imágenes de infraestructura (Docker Hub)
+      - name: Descargar imágenes de infraestructura y monitoreo
         run: |
-          echo "Descargando Nginx, Postgres, Redis y Elasticsearch..."
+          echo "Descargando Nginx, Postgres, Redis, Elasticsearch y stack de alertas..."
           docker pull nginx:alpine
           docker pull postgres:13
           docker pull redis:alpine
           docker pull elasticsearch:7.17.10
-          
-      - name: Descargar imágenes de monitoreo (Prometheus/Alertmanager)
-        run: |
-          echo "Descargando stack de alertas..."
           docker pull prom/prometheus:latest
           docker pull prom/alertmanager:latest
 
       - name: Empaquetar TODAS las imágenes en un solo archivo
         run: |
-          echo "Comprimiendo el ecosistema completo. Esto tomará unos minutos..."
+          echo "Comprimiendo el ecosistema completo (esto tomará unos minutos)..."
           docker save \
             registry.gitlab.inria.fr/scripta/escriptorium/app:latest \
             registry.gitlab.inria.fr/scripta/escriptorium/celery:latest \
@@ -50,12 +50,12 @@ jobs:
             elasticsearch:7.17.10 \
             prom/prometheus:latest \
             prom/alertmanager:latest \
-            | gzip > escriptorium_full_stack.tar.gz
+            | gzip > escriptorium_full_stack_k7.tar.gz
 
       - name: Subir empaquetado como Artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: escriptorium-full-stack
-          path: escriptorium_full_stack.tar.gz
+          name: escriptorium-full-stack-kraken7
+          path: escriptorium_full_stack_k7.tar.gz
           retention-days: 3
           
