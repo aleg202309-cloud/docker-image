@@ -18,16 +18,15 @@ jobs:
         run: |
           echo "Aplicando parches de compatibilidad y normalización de rutas..."
           
-          # A: Saltar a Node 16
-          sed -i 's|FROM node:12|FROM node:16|g' docker/frontend/Dockerfile
+          # A: Saltar a Node 16 (Usando % como delimitador para evitar errores de sintaxis)
+          sed -i 's%FROM node:12%FROM node:16%g' docker/frontend/Dockerfile
           
           # B: Desactivar SSL, evitar Cypress y usar dependencias legadas
-          sed -i 's|RUN npm install|RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps|g' docker/frontend/Dockerfile
+          sed -i 's%RUN npm install%RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps%g' docker/frontend/Dockerfile
           
-          # C: Comando de compilación corregido y normalización de salida
-          # Si npm run build falla, intentamos npm run dist. 
-          # Luego, nos aseguramos de que los archivos terminen en /code/build para el COPY final.
-          sed -i 's|npm run build|CI=false GENERATE_SOURCEMAP=false (npm run build || npm run dist) && mkdir -p /code/build && (cp -r dist/* /code/build/ || cp -r build/* /code/build/ || echo "Archivos listos")|g' docker/frontend/Dockerfile
+          # C: Comando de compilación inteligente:
+          # Intenta 'build' o 'dist', crea el directorio esperado y mueve los archivos a /code/build
+          sed -i 's%npm run build%CI=false GENERATE_SOURCEMAP=false (npm run build || npm run dist) \&\& mkdir -p /code/build \&\& (cp -r dist/* /code/build/ || cp -r build/* /code/build/ || echo "Archivos listos")%g' docker/frontend/Dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
