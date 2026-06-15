@@ -1,62 +1,49 @@
 name: Build and Package Invenio ILS Offline Stack
 
 on:
-  workflow_dispatch: # Permite disparar la construcción manualmente
+  workflow_dispatch:
 
 jobs:
   build-and-package:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Descargar el código fuente oficial (Usando la versión estable)
       - name: Checkout Invenio ILS Repository
         uses: actions/checkout@v4
         with:
           repository: 'inveniosoftware/invenio-app-ils'
           ref: 'v7.2.1'
 
-            # 2. Parchear dependencias, evitar el colapso de RAM y actualizar Node
       - name: Patch legacy Node.js and React configuration
         run: |
-          echo "Aplicando parches finales al Dockerfile del Frontend..."
+          echo "Aplicando parches de compatibilidad al Dockerfile del Frontend..."
           
-          # Parche A: Saltar a Node 16 (NPM 8 maneja --legacy-peer-deps nativamente)
+          # A: Actualizar a Node 16 para compatibilidad con librerías modernas
           sed -i 's/FROM node:12/FROM node:16/g' docker/frontend/Dockerfile
           
-          # Parche B: Desactivar validación SSL y anular la descarga de Cypress
+          # B: Desactivar SSL, evitar Cypress y usar dependencias legadas
           sed -i 's/RUN npm install/RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps/g' docker/frontend/Dockerfile
           
-          # Parche C: Desactivar modo estricto (CI) Y desactivar los Source Maps para evitar el colapso de RAM
-          sed -i 's/npm run build/CI=false GENERATE_SOURCEMAP=false npm run build/g' docker/frontend/Dockerfile
-          
+          # C: Corregir comando a 'npm run dist' y desactivar Source Maps (ahorro de RAM)
+          sed -i 's/npm run build/CI=false GENERATE_SOURCEMAP=false npm run dist/g' docker/frontend/Dockerfile
 
-      # 3. Configurar el motor de construcción de Docker
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4. Compilar las imágenes propias de Invenio
       - name: Build local Invenio images
         run: |
           docker compose -f docker-compose.full.yml build
 
-      # 5. Descargar la infraestructura externa (Bases de datos, índices, caché)
       - name: Pull external infrastructure images
         run: |
           docker compose -f docker-compose.full.yml pull
 
-      # 6. Exportar el ecosistema completo y comprimirlo
       - name: Export and Compress all images into tar.gz
         run: |
-          # Extraer la lista exacta de todas las imágenes generadas y descargadas
           IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -v "<none>")
-          
-          echo "Empaquetando las siguientes imágenes:"
-          echo "$IMAGES"
-          
-          # Guardar y comprimir todo en un único archivo
+          echo "Empaquetando imágenes para uso offline..."
           docker save $IMAGES | gzip > invenio_ils_full_stack.tar.gz
 
-      # 7. Subir el paquete resultante para su descarga
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
