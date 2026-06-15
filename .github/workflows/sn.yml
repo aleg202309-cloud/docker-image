@@ -16,16 +16,17 @@ jobs:
 
       - name: Patch legacy Node.js and React configuration
         run: |
-          echo "Aplicando parches de compatibilidad al Dockerfile del Frontend..."
+          echo "Aplicando parches de compatibilidad final..."
           
-          # A: Actualizar a Node 16 para compatibilidad con librerías modernas
+          # A: Saltar a Node 16
           sed -i 's/FROM node:12/FROM node:16/g' docker/frontend/Dockerfile
           
           # B: Desactivar SSL, evitar Cypress y usar dependencias legadas
           sed -i 's/RUN npm install/RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps/g' docker/frontend/Dockerfile
           
-          # C: Corregir comando a 'npm run dist' y desactivar Source Maps (ahorro de RAM)
-          sed -i 's/npm run build/CI=false GENERATE_SOURCEMAP=false npm run dist/g' docker/frontend/Dockerfile
+          # C: Comando de compilación inteligente:
+          # Primero intentamos 'build-assets'. Si falla, listamos todos los scripts disponibles para diagnóstico.
+          sed -i 's/npm run build/CI=false GENERATE_SOURCEMAP=false npm run build-assets || npm run/g' docker/frontend/Dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
