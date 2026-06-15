@@ -15,19 +15,20 @@ jobs:
           repository: 'inveniosoftware/invenio-app-ils'
           ref: 'v7.2.1'
 
-      # 2. Parchear el Dockerfile del Frontend para evitar errores de compilación
+            # 2. Parchear dependencias, evitar el colapso de RAM y actualizar Node
       - name: Patch legacy Node.js and React configuration
         run: |
-          echo "Aplicando parches al Dockerfile del Frontend..."
+          echo "Aplicando parches finales al Dockerfile del Frontend..."
           
-          # Parche A: Actualizar la imagen base a Node 14
-          sed -i 's/FROM node:12/FROM node:14/g' docker/frontend/Dockerfile
+          # Parche A: Saltar a Node 16 (NPM 8 maneja --legacy-peer-deps nativamente)
+          sed -i 's/FROM node:12/FROM node:16/g' docker/frontend/Dockerfile
           
-          # Parche B: Desactivar validación SSL estricta y anular la descarga inútil de Cypress
+          # Parche B: Desactivar validación SSL y anular la descarga de Cypress
           sed -i 's/RUN npm install/RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps/g' docker/frontend/Dockerfile
           
-          # Parche C: Desactivar el modo estricto de GitHub Actions (CI=false) para ignorar advertencias en React
-          sed -i 's/npm run build/CI=false npm run build/g' docker/frontend/Dockerfile
+          # Parche C: Desactivar modo estricto (CI) Y desactivar los Source Maps para evitar el colapso de RAM
+          sed -i 's/npm run build/CI=false GENERATE_SOURCEMAP=false npm run build/g' docker/frontend/Dockerfile
+          
 
       # 3. Configurar el motor de construcción de Docker
       - name: Set up Docker Buildx
