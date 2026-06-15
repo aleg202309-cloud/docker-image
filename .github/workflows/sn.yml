@@ -15,14 +15,16 @@ jobs:
           repository: 'inveniosoftware/invenio-app-ils'
           ref: 'v7.2.1' # <-- Cambiado de master a la última versión estable
 
-      # 2. [NUEVO PASO] Parchear la obsolescencia de Node 12
+            # 2. [ACTUALIZADO] Parchear la obsolescencia de Node y anular Cypress
       - name: Patch legacy Node.js configuration
         run: |
           echo "Actualizando el Dockerfile del Frontend..."
           # Actualizar la imagen base a Node 14
           sed -i 's/FROM node:12/FROM node:14/g' docker/frontend/Dockerfile
-          # Desactivar la validación SSL estricta antigua y relajar los conflictos de paquetes
-          sed -i 's/RUN npm install/RUN npm config set strict-ssl false \&\& npm install --legacy-peer-deps/g' docker/frontend/Dockerfile
+          
+          # Desactivar la validación SSL, relajar dependencias y ANULAR la descarga de Cypress
+          sed -i 's/RUN npm install/RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps/g' docker/frontend/Dockerfile
+          
 
       # 3. Configurar el motor de construcción de Docker
       - name: Set up Docker Buildx
