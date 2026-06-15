@@ -16,17 +16,17 @@ jobs:
 
       - name: Patch legacy Node.js and React configuration
         run: |
-          echo "Aplicando parches de diagnóstico y compilación..."
+          echo "Aplicando parches de compatibilidad..."
           
           # A: Saltar a Node 16
-          sed -i 's/FROM node:12/FROM node:16/g' docker/frontend/Dockerfile
+          sed -i 's|FROM node:12|FROM node:16|g' docker/frontend/Dockerfile
           
-          # B: Desactivar SSL, evitar Cypress y usar dependencias legadas
-          sed -i 's/RUN npm install/RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps/g' docker/frontend/Dockerfile
+          # B: Desactivar SSL y evitar la descarga inútil de Cypress
+          sed -i 's|RUN npm install|RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps|g' docker/frontend/Dockerfile
           
-          # C: Comando de compilación inteligente con diagnóstico de ruta
-          # Si npm run build falla, listaremos recursivamente el contenido de /code
-          sed -i 's/npm run build/CI=false GENERATE_SOURCEMAP=false npm run build || (echo "DIAGNÓSTICO: Buscando archivos generados..." \&\& ls -R /code)/g' docker/frontend/Dockerfile
+          # C: Comando de compilación corregido con diagnóstico automático
+          # Si npm run build falla, imprimirá el contenido de /code para localizar los archivos
+          sed -i 's|npm run build|CI=false GENERATE_SOURCEMAP=false npm run build \|\| (echo "DIAGNÓSTICO: Listando archivos..." \&\& ls -R /code)|g' docker/frontend/Dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -42,6 +42,7 @@ jobs:
       - name: Export and Compress all images into tar.gz
         run: |
           IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -v "<none>")
+          echo "Empaquetando imágenes para uso offline..."
           docker save $IMAGES | gzip > invenio_ils_full_stack.tar.gz
 
       - name: Upload Artifact
