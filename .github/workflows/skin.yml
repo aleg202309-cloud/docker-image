@@ -1,0 +1,64 @@
+name: Empaquetar Stack Completo eScriptorium
+
+on:
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  build-bundle:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Liberar espacio en disco
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+      - name: Ejecutar script de descarga
+        run: |
+          echo "Iniciando descargas secuenciales..."
+          # PostgreSQL
+          docker pull postgres:15
+          # Redis
+          docker pull redis:alpine
+          # Nginx
+          docker pull registry.gitlab.com/scripta/escriptorium/nginx:latest
+          # eScriptorium Core
+          docker pull registry.gitlab.com/scripta/escriptorium:latest
+          # Elasticsearch
+          docker pull docker.elastic.co/elasticsearch/elasticsearch:7.17.4
+          # Mailhog
+          docker pull mailhog/mailhog
+          # Monitoreo (Prometheus, Alertmanager, Node Exporter, Grafana)
+          docker pull prom/prometheus:latest
+          docker pull prom/alertmanager:latest
+          docker pull prom/node-exporter:latest
+          docker pull grafana/grafana:latest
+
+      - name: Empaquetar imágenes en un archivo .tar.gz
+        run: |
+          echo "Comprimiendo todas las imágenes descargadas..."
+          docker save \
+            postgres:15 \
+            redis:alpine \
+            registry.gitlab.com/scripta/escriptorium/nginx:latest \
+            registry.gitlab.com/scripta/escriptorium:latest \
+            docker.elastic.co/elasticsearch/elasticsearch:7.17.4 \
+            mailhog/mailhog \
+            prom/prometheus:latest \
+            prom/alertmanager:latest \
+            prom/node-exporter:latest \
+            grafana/grafana:latest \
+            | gzip > escriptorium_full_stack.tar.gz
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: escriptorium-full-stack
+          path: escriptorium_full_stack.tar.gz
+          retention-days: 5
+          
