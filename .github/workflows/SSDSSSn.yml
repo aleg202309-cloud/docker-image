@@ -16,17 +16,17 @@ jobs:
 
       - name: Patch legacy Node.js and React configuration
         run: |
-          echo "Aplicando parches de compatibilidad limpios..."
+          echo "Aplicando inyección limpia de variables de entorno de Docker..."
           
           # A: Cambiar la imagen base del Frontend a Node 16
           sed -i 's%FROM node:12%FROM node:16%g' docker/frontend/Dockerfile
           
-          # B: Configurar NPM de manera estructurada y limpia
-          # Separamos la configuración global de la instalación para evitar el fallo de NPM
-          sed -i 's%RUN npm install%RUN npm config set strict-ssl false \&\& export CYPRESS_INSTALL_BINARY=0 \&\& npm install --legacy-peer-deps --silent%g' docker/frontend/Dockerfile
+          # B: Inyectar variables de entorno nativas de Docker (ENV) justo debajo del FROM
+          # Esto desactiva Cypress y los mapas de código para ahorrar RAM en todo el contenedor
+          sed -i '/FROM node:16/a ENV CYPRESS_INSTALL_BINARY=0\nENV GENERATE_SOURCEMAP=false\nENV CI=false' docker/frontend/Dockerfile
           
-          # C: Desactivar las restricciones estrictas del entorno CI de GitHub y compilar de forma segura
-          sed -i 's%npm run build%export CI=false \&\& export GENERATE_SOURCEMAP=false \&\& npm run build%g' docker/frontend/Dockerfile
+          # C: Limpiar el comando de instalación para que no use configuraciones conflictivas inline
+          sed -i 's%RUN npm install%RUN npm config set strict-ssl false \&\& npm install --legacy-peer-deps --silent%g' docker/frontend/Dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
