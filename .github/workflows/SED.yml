@@ -1,0 +1,52 @@
+name: Download Python Dependencies
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download-python-deps:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        repository: inveniosoftware/invenio-app-ils
+        ref: master
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install pipenv
+      run: pip install pipenv
+    
+    - name: Download all Python packages
+      run: |
+        # 1. Exportar el Pipfile.lock estricto a un requirements.txt tradicional
+        pipenv requirements > requirements.txt
+        
+        # 2. Crear la carpeta de destino
+        mkdir -p python-packages
+        
+        # 3. Usar pip para descargar todos los binarios (.whl) y código fuente (.tar.gz)
+        pip download -r requirements.txt -d ./python-packages
+        
+        # 4. Verificar qué se descargó
+        cd python-packages
+        ls -lh
+        du -sh .
+    
+    - name: Compress packages
+      run: |
+        # Comprimir el contenido de la carpeta directamente
+        tar -czf python-dependencies.tar.gz -C python-packages .
+        ls -lh python-dependencies.tar.gz
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-dependencies
+        path: python-dependencies.tar.gz
+        retention-days: 30
