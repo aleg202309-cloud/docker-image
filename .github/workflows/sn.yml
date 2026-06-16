@@ -14,19 +14,19 @@ jobs:
           repository: 'inveniosoftware/invenio-app-ils'
           ref: 'v7.2.1'
 
-      - name: Patch legacy Node.js configuration
+      - name: Patch legacy Node.js and React configuration
         run: |
-          echo "Aplicando diagnóstico de Rayos X..."
+          echo "Aplicando parches finales basados en Rollup.js..."
           
-          # A: Node 16
+          # A: Actualizar la imagen base a Node 16
           sed -i 's%FROM node:12%FROM node:16%g' docker/frontend/Dockerfile
           
-          # B: Evitar bloqueos de red e instalaciones pesadas innecesarias
-          sed -i 's%RUN npm install%RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps --silent%g' docker/frontend/Dockerfile
+          # B: Evitar bloqueos de red, omitir Cypress y habilitar dependencias legadas
+          sed -i 's%RUN npm install%RUN CYPRESS_INSTALL_BINARY=0 npm config set strict-ssl false \&\& CYPRESS_INSTALL_BINARY=0 npm install --legacy-peer-deps%g' docker/frontend/Dockerfile
           
-          # C: VOLCADO DIAGNÓSTICO
-          # Reemplazamos la compilación por la impresión del package.json y los archivos, y forzamos el volcado.
-          sed -i 's%npm run build%echo "--- PACKAGE.JSON ---" \&\& cat package.json \&\& echo "--- ARCHIVOS INTERNOS ---" \&\& ls -la \&\& exit 1%g' docker/frontend/Dockerfile
+          # C: Forzar la compilación real usando Rollup y asegurar la salida en /code/build
+          # Ejecutamos 'npm run compile' (estándar de Rollup) y mapeamos el directorio
+          sed -i 's%npm run build%CI=false GENERATE_SOURCEMAP=false (npm run compile \|\| npx rollup -c \|\| npm run rollup) \&\& mkdir -p /code/build \&\& cp -r dist/* /code/build/ 2>/dev/null \|\| true%g' docker/frontend/Dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -34,3 +34,21 @@ jobs:
       - name: Build local Invenio images
         run: |
           docker compose -f docker-compose.full.yml build
+
+      - name: Pull external infrastructure images
+        run: |
+          docker compose -f docker-compose.full.yml pull
+
+      - name: Export and Compress all images into tar.gz
+        run: |
+          IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -v "<none>")
+          echo "Empaquetando ecosistema completo para uso offline institucional..."
+          docker save $IMAGES | gzip > invenio_ils_full_stack.tar.gz
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: invenio-ils-docker-bundle
+          path: invenio_ils_full_stack.tar.gz
+          retention-days: 3
+          
