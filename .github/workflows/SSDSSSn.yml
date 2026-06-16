@@ -1,0 +1,54 @@
+name: Build and Package Invenio ILS Offline Stack
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Invenio ILS Repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'inveniosoftware/invenio-app-ils'
+          ref: 'v7.2.1'
+
+      - name: Patch legacy Node.js and React configuration
+        run: |
+          echo "Aplicando parches de compatibilidad limpios..."
+          
+          # A: Cambiar la imagen base del Frontend a Node 16
+          sed -i 's%FROM node:12%FROM node:16%g' docker/frontend/Dockerfile
+          
+          # B: Configurar NPM de manera estructurada y limpia
+          # Separamos la configuración global de la instalación para evitar el fallo de NPM
+          sed -i 's%RUN npm install%RUN npm config set strict-ssl false \&\& export CYPRESS_INSTALL_BINARY=0 \&\& npm install --legacy-peer-deps --silent%g' docker/frontend/Dockerfile
+          
+          # C: Desactivar las restricciones estrictas del entorno CI de GitHub y compilar de forma segura
+          sed -i 's%npm run build%export CI=false \&\& export GENERATE_SOURCEMAP=false \&\& npm run build%g' docker/frontend/Dockerfile
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build local Invenio images
+        run: |
+          docker compose -f docker-compose.full.yml build
+
+      - name: Pull external infrastructure images
+        run: |
+          docker compose -f docker-compose.full.yml pull
+
+      - name: Export and Compress all images into tar.gz
+        run: |
+          IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -v "<none>")
+          echo "Empaquetando ecosistema completo para uso offline..."
+          docker save $IMAGES | gzip > invenio_ils_full_stack.tar.gz
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: invenio-ils-docker-bundle
+          path: invenio_ils_full_stack.tar.gz
+          retention-days: 3
+          
