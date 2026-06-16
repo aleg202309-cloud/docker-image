@@ -1,39 +1,43 @@
-name: Export All Images Single File
+name: Build and Export Invenio ILS Images
 
 on:
   workflow_dispatch:
 
 jobs:
-  export-single-file:
+  build-and-export:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Pull and build all images
+    - name: Pull base images
       run: |
-        # Servicios
         docker pull redis:6
         docker pull postgres:14
         docker pull rabbitmq:3-management
         docker pull opensearchproject/opensearch:3.2.0
         docker pull opensearchproject/opensearch-dashboards:3.2.0
         docker pull mher/flower:0.9.7
-        
-        # Bases
         docker pull haproxy:2.2
         docker pull node:12
         docker pull nginx:1.18
-        docker pull registry.cern.ch/inveniosoftware/almalinux:1
         
-        # Personalizadas
+        # Intentar descargar la imagen del CERN (puede fallar)
+        docker pull registry.cern.ch/inveniosoftware/almalinux:1 || {
+          echo "⚠️ Imagen del CERN no disponible, usando alternativa"
+          docker pull almalinux:1
+          docker tag almalinux:1 registry.cern.ch/inveniosoftware/almalinux:1
+        }
+        
+    - name: Build custom images
+      run: |
         docker build -t invenio_app_ils-backend -f docker/backend/Dockerfile .
         docker build -t invenio_app_ils-frontend -f docker/frontend/Dockerfile .
         docker build -t invenio_app_ils-lb -f docker/lb/Dockerfile .
-        docker build -t invenio_app_ils-worker -f docker/backend/Dockerfile .
+        docker tag invenio_app_ils-backend invenio_app_ils-worker
         
-    - name: Export all images to single file
+    - name: Export all images
       run: |
         docker save \
           redis:6 \
@@ -57,6 +61,6 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: invenio-ils-all-images
+        name: invenio-ils-images
         path: invenio-ils-all-images.tar.gz
         retention-days: 30
