@@ -8,11 +8,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout repository
+    # 🔴 CAMBIO CLAVE AQUÍ: Forzamos la descarga del repositorio oficial
+    - name: Checkout Invenio ILS repository
       uses: actions/checkout@v4
+      with:
+        repository: inveniosoftware/invenio-app-ils
+        ref: master  # La rama principal de Invenio suele ser 'master'
+        # path: invenio-app-ils # Descomenta esto si quieres que se guarde en una subcarpeta
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
       
     - name: Pull base images
       run: |
+        echo "⬇️ Descargando imágenes base..."
         docker pull redis:6
         docker pull postgres:14
         docker pull rabbitmq:3-management
@@ -23,22 +32,26 @@ jobs:
         docker pull node:12
         docker pull nginx:1.18
         
-        # Intentar descargar la imagen del CERN (puede fallar)
+        # Intentar descargar la imagen del CERN con fallback
+        echo "⬇️ Descargando imagen base del backend..."
         docker pull registry.cern.ch/inveniosoftware/almalinux:1 || {
-          echo "⚠️ Imagen del CERN no disponible, usando alternativa"
+          echo "⚠️ Imagen del CERN no disponible, usando almalinux:1 como fallback"
           docker pull almalinux:1
           docker tag almalinux:1 registry.cern.ch/inveniosoftware/almalinux:1
         }
         
     - name: Build custom images
       run: |
+        echo "🛠️ Construyendo imágenes personalizadas de Invenio..."
+        # Ahora la carpeta 'docker/' SÍ existe porque clonamos el repo oficial
         docker build -t invenio_app_ils-backend -f docker/backend/Dockerfile .
         docker build -t invenio_app_ils-frontend -f docker/frontend/Dockerfile .
         docker build -t invenio_app_ils-lb -f docker/lb/Dockerfile .
         docker tag invenio_app_ils-backend invenio_app_ils-worker
         
-    - name: Export all images
+    - name: Export all images to single file
       run: |
+        echo "📦 Exportando todas las imágenes a un solo archivo..."
         docker save \
           redis:6 \
           postgres:14 \
@@ -56,11 +69,12 @@ jobs:
           invenio_app_ils-worker \
           -o invenio-ils-all-images.tar
           
+        echo "🗜️ Comprimiendo archivo..."
         gzip invenio-ils-all-images.tar
         
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: invenio-ils-images
+        name: invenio-ils-all-images
         path: invenio-ils-all-images.tar.gz
         retention-days: 30
