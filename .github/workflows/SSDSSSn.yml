@@ -14,26 +14,26 @@ jobs:
           repository: 'inveniosoftware/invenio-app-ils'
           ref: 'v7.2.1'
 
-      - name: Patch legacy Node.js and React configuration
+      # Parche mínimo y seguro: Forzar la imagen base de Node 16 para evitar la obsolescencia
+      - name: Upgrade Node Base Image
         run: |
-          echo "Aplicando inyección limpia de variables de entorno de Docker..."
-          
-          # A: Cambiar la imagen base del Frontend a Node 16
-          sed -i 's%FROM node:12%FROM node:16%g' docker/frontend/Dockerfile
-          
-          # B: Inyectar variables de entorno nativas de Docker (ENV) justo debajo del FROM
-          # Esto desactiva Cypress y los mapas de código para ahorrar RAM en todo el contenedor
-          sed -i '/FROM node:16/a ENV CYPRESS_INSTALL_BINARY=0\nENV GENERATE_SOURCEMAP=false\nENV CI=false' docker/frontend/Dockerfile
-          
-          # C: Limpiar el comando de instalación para que no use configuraciones conflictivas inline
-          sed -i 's%RUN npm install%RUN npm config set strict-ssl false \&\& npm install --legacy-peer-deps --silent%g' docker/frontend/Dockerfile
+          sed -i 's|node:12|node:16|g' docker/frontend/Dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Construcción limpia pasando variables globales que Docker Compose inyectará directamente
       - name: Build local Invenio images
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+          CI: 'false'
+          GENERATE_SOURCEMAP: 'false'
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
         run: |
-          docker compose -f docker-compose.full.yml build
+          # Obligamos a NPM a ignorar certificados caídos y usar dependencias legadas globalmente en el host de build
+          export NPM_CONFIG_STRICT_SSL=false
+          export NPM_CONFIG_LEGACY_PEER_DEPS=true
+          docker compose -f docker-compose.full.yml build --build-arg CYPRESS_INSTALL_BINARY=0
 
       - name: Pull external infrastructure images
         run: |
