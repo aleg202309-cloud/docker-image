@@ -14,26 +14,49 @@ jobs:
           repository: 'inveniosoftware/invenio-app-ils'
           ref: 'v7.2.1'
 
-      # Parche mínimo y seguro: Forzar la imagen base de Node 16 para evitar la obsolescencia
-      - name: Upgrade Node Base Image
-        run: |
-          sed -i 's|node:12|node:16|g' docker/frontend/Dockerfile
+      # 1. Configurar Node 16 directamente en el servidor virtual de GitHub
+      - name: Set up Node.js 16
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
 
+      # 2. Compilar la interfaz gráfica React fuera de Docker (Rápido y controlado)
+      - name: Build Frontend Assets Locally
+        run: |
+          cd src/frontend
+          npm config set strict-ssl false
+          npm install --legacy-peer-deps
+          CI=false GENERATE_SOURCEMAP=false npm run build
+
+      # 3. Modificar el Dockerfile para que no intente compilar nada, solo use lo que ya procesamos
+      - name: Simplify Frontend Dockerfile
+        run: |
+          # Reemplazar todo el contenido del Dockerfile del frontend para que sea un Nginx simple
+          cat << 'EOF' > docker/frontend/Dockerfile
+          FROM nginx:1.18
+          
+          ENV REACT_ASSETS=/usr/share/nginx/html/react-assets
+          RUN mkdir -p ${REACT_ASSETS}
+          
+          # Copiar la interfaz que compilamos en el paso anterior directamente a Nginx
+          COPY src/frontend/build ${REACT_ASSETS}
+          
+          COPY docker/frontend/nginx.conf /etc/nginx/nginx.conf
+          COPY docker/frontend/conf.d/* /etc/nginx/conf.d/
+          COPY docker/frontend/test.key /etc/ssl/private/test.key
+          COPY docker/frontend/test.crt /etc/ssl/certs/test.crt
+          
+          CMD ["nginx", "-g", "daemon off;"]
+          EOF
+
+      # 4. Levantar Buildx y empaquetar de forma nativa
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Construcción limpia pasando variables globales que Docker Compose inyectará directamente
       - name: Build local Invenio images
-        env:
-          CYPRESS_INSTALL_BINARY: '0'
-          CI: 'false'
-          GENERATE_SOURCEMAP: 'false'
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
         run: |
-          # Obligamos a NPM a ignorar certificados caídos y usar dependencias legadas globalmente en el host de build
-          export NPM_CONFIG_STRICT_SSL=false
-          export NPM_CONFIG_LEGACY_PEER_DEPS=true
-          docker compose -f docker-compose.full.yml build --build-arg CYPRESS_INSTALL_BINARY=0
+          export CYPRESS_INSTALL_BINARY=0
+          docker compose -f docker-compose.full.yml build
 
       - name: Pull external infrastructure images
         run: |
