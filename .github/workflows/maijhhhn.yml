@@ -1,0 +1,45 @@
+name: Descargar y Empaquetar RERO ILS
+
+on:
+  workflow_dispatch: # Se ejecuta manualmente desde la pestaña "Actions"
+
+jobs:
+  package-rero-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio oficial de RERO ILS Project
+        run: git clone https://github.com/rero/rero-ils-project.git
+
+      - name: Entrar al directorio y extraer nombres de imágenes
+        run: |
+          cd rero-ils-project
+          # Extraemos las imágenes definidas en el docker-compose oficial
+          docker compose config | grep 'image:' | awk '{print $2}' > ../images.txt
+          cat ../images.txt
+
+      - name: Descargar (Pull) todas las imágenes de RERO
+        run: |
+          cd rero-ils-project
+          docker compose pull
+
+      - name: Guardar imágenes en archivos .tar
+        run: |
+          mkdir rero-tars
+          while IFS= read -r image; do
+            # Limpiamos el nombre para que sea un archivo válido (ej: rero_rero-ils-api.tar)
+            safe_name=$(echo "$image" | sed 's/[^a-zA-Z0-9._-]/_/g')
+            docker save "$image" -o rero-tars/"$safe_name".tar
+            echo "Guardada: $image"
+          done < images.txt
+
+      - name: Comprimir todo en un solo archivo .tar.gz
+        run: |
+          tar -czvf rero-images-bundle.tar.gz rero-tars/
+          ls -lh rero-images-bundle.tar.gz
+
+      - name: Subir artefacto a GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: rero-ils-docker-images
+          path: rero-images-bundle.tar.gz
+          retention-days: 5 # Se borra a los 5 días para no llenar tu GitHub
