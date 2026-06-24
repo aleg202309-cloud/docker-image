@@ -1,46 +1,51 @@
-version: '3.8'
+name: Descargar Imágenes RERO ILS
 
-services:
-  # El "Cerebro" de AMANDA
-  letta-server:
-    image: letta/letta:latest
-    container_name: letta_server
-    ports:
-      - "8083:8083"
-    environment:
-      - LETTA_ENVIRONMENT=production
-      - POSTGRES_URL=postgresql://letta:amanda123@db:5432/letta
-      - CHROMA_SERVER_HOST=chroma
-      - CHROMA_SERVER_HTTP_PORT=8000
-    volumes:
-      - ./letta_data:/root/.letta
-    depends_on:
-      - db
-      - chroma
+on:
+  workflow_dispatch: # Ejecución manual
 
-  # La "Memoria de Datos Exactos" (SQL)
-  db:
-    image: postgres:16-alpine
-    container_name: letta_db
-    environment:
-      POSTGRES_USER: letta
-      POSTGRES_PASSWORD: amanda123
-      POSTGRES_DB: letta
-    volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+jobs:
+  download-rero-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Definir lista de imágenes oficiales de RERO
+        run: |
+          cat > images.txt << 'EOF'
+          ghcr.io/rero/rero-ils-api:latest
+          ghcr.io/rero/rero-ils-ui:latest
+          ghcr.io/rero/rero-ils-worker:latest
+          postgres:13
+          elasticsearch:7.17.9
+          redis:alpine
+          nginx:alpine
+          EOF
+          cat images.txt
 
-  # La "Memoria Semántica" (Vectores)
-  chroma:
-    image: chromadb/chroma:latest
-    container_name: letta_chroma
-    volumes:
-      - ./chroma_data:/chroma/data
+      - name: Descargar todas las imágenes
+        run: |
+          mkdir -p rero-images
+          while IFS= read -r image; do
+            echo "Descargando: $image"
+            docker pull "$image" || echo "Error descargando $image, continuando..."
+          done < images.txt
 
-  # El "Procesador" (LLM)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama_local
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./ollama_data:/root/.ollama
+      - name: Guardar imágenes en archivos .tar
+        run: |
+          cd rero-images
+          while IFS= read -r image; do
+            # Crear nombre de archivo seguro
+            safe_name=$(echo "$image" | sed 's/[\/:]/_/g')
+            echo "Guardando $image como $safe_name.tar"
+            docker save "$image" -o "$safe_name.tar" || echo "Error guardando $image"
+          done < ../images.txt
+
+      - name: Comprimir todas las imágenes
+        run: |
+          tar -czvf rero-ils-images-complete.tar.gz rero-images/
+          ls -lh rero-ils-images-complete.tar.gz
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: rero-ils-docker-images
+          path: rero-ils-images-complete.tar.gz
+          retention-days: 7
