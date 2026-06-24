@@ -1,0 +1,70 @@
+name: Descargar Imágenes Oficiales RERO ILS
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión de RERO ILS'
+        required: true
+        default: 'bib-v1.27.1'
+
+jobs:
+  download-rero-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Definir lista de imágenes (Docker Hub)
+        run: |
+          cat > images.txt << 'EOF'
+          rero/rero-ils:bib-v1.27.1
+          postgres:14
+          elasticsearch:7.17.9
+          redis:7-alpine
+          rabbitmq:3-management-alpine
+          nginx:alpine
+          EOF
+          echo "=== Imágenes a descargar ==="
+          cat images.txt
+
+      - name: Descargar todas las imágenes desde Docker Hub
+        run: |
+          echo "=== Descargando imágenes ==="
+          while IFS= read -r image; do
+            echo "Pull: $image"
+            docker pull "$image"
+          done < images.txt
+          
+          echo ""
+          echo "=== Imágenes descargadas ==="
+          docker images
+
+      - name: Guardar imágenes en archivos .tar
+        run: |
+          mkdir -p rero-images
+          cd rero-images
+          
+          while IFS= read -r image; do
+            # Crear nombre de archivo seguro
+            safe_name=$(echo "$image" | sed 's/[\/:]/_/g')
+            echo "Guardando: $image -> $safe_name.tar"
+            docker save "$image" -o "$safe_name.tar"
+          done < ../images.txt
+          
+          echo ""
+          echo "=== Archivos .tar creados ==="
+          ls -lh *.tar
+
+      - name: Comprimir todas las imágenes
+        run: |
+          tar -czvf rero-ils-images-complete.tar.gz rero-images/
+          echo ""
+          echo "=== Archivo final ==="
+          ls -lh rero-ils-images-complete.tar.gz
+
+      - name: Subir artefacto a GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: rero-ils-docker-images-${{ github.event.inputs.version }}
+          path: rero-ils-images-complete.tar.gz
+          retention-days: 7
