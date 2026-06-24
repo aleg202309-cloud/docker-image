@@ -1,51 +1,70 @@
-name: Descargar Imágenes RERO ILS
+name: Descargar Imágenes Oficiales RERO ILS
 
 on:
-  workflow_dispatch: # Ejecución manual
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión de RERO ILS (ej: bib-v1.27.1 o latest)'
+        required: true
+        default: 'bib-v1.27.1'
 
 jobs:
   download-rero-images:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
     steps:
-      - name: Definir lista de imágenes oficiales de RERO
+      - name: Definir lista de imágenes
         run: |
           cat > images.txt << 'EOF'
-          ghcr.io/rero/rero-ils-api:latest
-          ghcr.io/rero/rero-ils-ui:latest
-          ghcr.io/rero/rero-ils-worker:latest
-          postgres:13
+          rero/rero-ils:${{ github.event.inputs.version }}
+          postgres:14
           elasticsearch:7.17.9
-          redis:alpine
+          redis:7-alpine
+          rabbitmq:3-management-alpine
           nginx:alpine
           EOF
+          echo "=== Imágenes a descargar ==="
           cat images.txt
 
       - name: Descargar todas las imágenes
         run: |
-          mkdir -p rero-images
+          echo "=== Descargando imágenes ==="
           while IFS= read -r image; do
-            echo "Descargando: $image"
-            docker pull "$image" || echo "Error descargando $image, continuando..."
+            echo "Pull: $image"
+            docker pull "$image"
           done < images.txt
+          
+          echo ""
+          echo "=== Imágenes descargadas ==="
+          docker images
 
       - name: Guardar imágenes en archivos .tar
         run: |
+          mkdir -p rero-images
           cd rero-images
+          
           while IFS= read -r image; do
-            # Crear nombre de archivo seguro
+            # Crear nombre de archivo seguro (reemplazar / y : por _)
             safe_name=$(echo "$image" | sed 's/[\/:]/_/g')
-            echo "Guardando $image como $safe_name.tar"
-            docker save "$image" -o "$safe_name.tar" || echo "Error guardando $image"
+            echo "Guardando: $image -> $safe_name.tar"
+            docker save "$image" -o "$safe_name.tar"
           done < ../images.txt
+          
+          echo ""
+          echo "=== Archivos .tar creados ==="
+          ls -lh *.tar
 
       - name: Comprimir todas las imágenes
         run: |
           tar -czvf rero-ils-images-complete.tar.gz rero-images/
+          echo ""
+          echo "=== Archivo final ==="
           ls -lh rero-ils-images-complete.tar.gz
 
-      - name: Subir artefacto
+      - name: Subir artefacto a GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: rero-ils-docker-images
+          name: rero-ils-docker-images-${{ github.event.inputs.version }}
           path: rero-ils-images-complete.tar.gz
           retention-days: 7
