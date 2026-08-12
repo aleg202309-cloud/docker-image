@@ -29,7 +29,6 @@ jobs:
                    ./db/mysql
 
       - name: Crear archivo docker-compose.yml dinámicamente
-        # Este paso escribe el contenido de tu docker-compose en el entorno de ejecución
         run: |
           cat << 'EOF' > docker-compose.yml
           services:
@@ -87,10 +86,25 @@ jobs:
                   target: /var/lib/mysql
           EOF
 
-      - name: Desplegar infraestructura con Compose
-        # Ahora el archivo está garantizado de existir en la raíz (./docker-compose.yml)
+      - name: Probar el despliegue de la infraestructura (Test)
         run: docker compose -f ./docker-compose.yml up -d
 
       - name: Verificar el estado de los servicios
         run: docker compose ps
-        
+
+      - name: Detener contenedores de prueba
+        # Es buena práctica detenerlos antes de exportar
+        run: docker compose -f ./docker-compose.yml down
+
+      - name: Comprimir imágenes de Docker (tar.gz)
+        # Exporta ambas imágenes y las comprime al vuelo para ahorrar espacio y tiempo
+        run: |
+          docker save docker.io/intranda/goobi-workflow:latest docker.io/library/mariadb:latest | gzip > goobi-stack.tar.gz
+
+      - name: Subir artefacto para descarga
+        uses: actions/upload-artifact@v4
+        with:
+          name: goobi-docker-images
+          path: goobi-stack.tar.gz
+          retention-days: 5 # El archivo se borrará de GitHub en 5 días para no consumir tu almacenamiento
+          
