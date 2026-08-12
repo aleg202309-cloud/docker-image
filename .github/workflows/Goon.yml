@@ -13,10 +13,6 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Verificar archivos del repositorio (Debug)
-        # Lista los archivos en la consola para confirmar que docker-compose.yml está presente
-        run: ls -la
-
       - name: Forzar descarga de la imagen oficial de Goobi Workflow
         run: docker pull docker.io/intranda/goobi-workflow:latest
 
@@ -32,10 +28,67 @@ jobs:
                    ./logs/tomcat/workflow \
                    ./db/mysql
 
+      - name: Crear archivo docker-compose.yml dinámicamente
+        # Este paso escribe el contenido de tu docker-compose en el entorno de ejecución
+        run: |
+          cat << 'EOF' > docker-compose.yml
+          services:
+            workflow:
+              image: docker.io/intranda/goobi-workflow:latest
+              depends_on:
+                - workflow-db
+              restart: unless-stopped
+              ports:
+                - "8080:8080"
+              environment:
+                DB_HOST: workflow-db
+                DB_NAME: goobi
+                DB_USER: goobi
+                DB_PORT: 3306
+                DB_PASSWORD: CHANGEME
+                PW_GOOBITESTUSER: CHANGEME
+                WORKFLOW_BASE_PATH: /workflow
+                GOOBI_ApplicationHeaderTitle: "Goobi workflow"
+              volumes:
+                - type: bind
+                  source: ./goobi/config
+                  target: /opt/digiverso/goobi/config
+                - type: bind
+                  source: ./goobi/plugins
+                  target: /opt/digiverso/goobi/plugins
+                - type: bind
+                  source: ./goobi/metadata
+                  target: /opt/digiverso/goobi/metadata
+                - type: bind
+                  source: ./goobi/lib
+                  target: /opt/digiverso/goobi/lib
+                - type: bind
+                  source: ./logs/tomcat/workflow
+                  target: /usr/local/tomcat/logs
+
+            workflow-db:
+              image: docker.io/library/mariadb:latest
+              restart: unless-stopped
+              healthcheck:
+                test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+                interval: 60s
+                timeout: 10s
+                retries: 3
+                start_period: 10s
+              environment:
+                MYSQL_ROOT_PASSWORD: CHANGEME
+                MYSQL_DATABASE: goobi
+                MYSQL_USER: goobi
+                MYSQL_PASSWORD: CHANGEME
+                TZ: "Europe/Berlin"
+              volumes:
+                - type: bind
+                  source: ./db/mysql
+                  target: /var/lib/mysql
+          EOF
+
       - name: Desplegar infraestructura con Compose
-        # El parámetro -f le indica a Docker la ruta exacta del archivo.
-        # IMPORTANTE: Si guardaste tu docker-compose.yml dentro de una carpeta,
-        # cambia './docker-compose.yml' por './nombre-carpeta/docker-compose.yml'
+        # Ahora el archivo está garantizado de existir en la raíz (./docker-compose.yml)
         run: docker compose -f ./docker-compose.yml up -d
 
       - name: Verificar el estado de los servicios
