@@ -1,0 +1,57 @@
+name: Descargar Imágenes Oficiales de Goobi
+
+on:
+  workflow_dispatch:            # Botón "Run workflow" en la pestaña Actions
+  push:
+    branches: [ main ]
+
+env:
+  GOOBI_IMAGE: intranda/goobi-workflow:latest
+  DB_IMAGE: mariadb:10.11
+
+jobs:
+  pull-official:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write           # Necesario solo si activas el espejo en GHCR
+
+    steps:
+      # OPCIONAL: login en Docker Hub para elevar el límite de descargas
+      # (los runners de GitHub comparten IPs y a veces Docker Hub limita a anónimos)
+      - name: Login en Docker Hub
+        if: ${{ secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # AQUÍ está lo que pides: descarga directa del repositorio oficial
+      - name: Pull imágenes oficiales desde Docker Hub
+        run: |
+          echo "️ Descargando $GOOBI_IMAGE ..."
+          docker pull $GOOBI_IMAGE
+          echo "⬇️ Descargando $DB_IMAGE ..."
+          docker pull $DB_IMAGE
+
+      - name: Verificar descarga
+        run: docker images | grep -E "goobi|mariadb"
+
+      # OPCIONAL: crear un espejo en GitHub Container Registry
+      # Útil para que tu servidor final descargue rápido y sin rate-limits
+      - name: Login en GHCR
+        if: ${{ vars.CREAR_ESPEJO == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Espejo de imágenes en GHCR
+        if: ${{ vars.CREAR_ESPEJO == 'true' }}
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker tag $GOOBI_IMAGE ghcr.io/$OWNER/goobi-workflow:latest
+          docker push ghcr.io/$OWNER/goobi-workflow:latest
+          docker tag $DB_IMAGE ghcr.io/$OWNER/mariadb:10.11
+          docker push ghcr.io/$OWNER/mariadb:10.11
