@@ -1,0 +1,40 @@
+name: Despliegue Oficial Goobi Workflow
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy-official-images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Forzar descarga de la imagen oficial de Goobi Workflow
+        # Apunta exactamente al namespace de intranda en el registry oficial de Docker
+        run: docker pull docker.io/intranda/goobi-workflow:latest
+
+      - name: Forzar descarga de la imagen oficial de MariaDB
+        # Apunta al registry oficial de la librería de Docker
+        run: docker pull docker.io/library/mariadb:latest
+
+      - name: Crear estructura de directorios de volúmenes
+        # Garantiza que los volúmenes existan con los permisos correctos antes de que Compose los monte
+        run: |
+          mkdir -p ./goobi/config \
+                   ./goobi/plugins \
+                   ./goobi/metadata \
+                   ./goobi/lib \
+                   ./logs/tomcat/workflow \
+                   ./db/mysql
+
+      - name: Desplegar infraestructura con Compose
+        # Utiliza el archivo docker-compose.yml presente en la raíz de tu repositorio
+        run: docker compose up -d
+
+      - name: Verificar el estado de los servicios
+        run: docker compose ps
+        
