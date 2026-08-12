@@ -13,16 +13,17 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
+      - name: Verificar archivos del repositorio (Debug)
+        # Lista los archivos en la consola para confirmar que docker-compose.yml está presente
+        run: ls -la
+
       - name: Forzar descarga de la imagen oficial de Goobi Workflow
-        # Apunta exactamente al namespace de intranda en el registry oficial de Docker
         run: docker pull docker.io/intranda/goobi-workflow:latest
 
       - name: Forzar descarga de la imagen oficial de MariaDB
-        # Apunta al registry oficial de la librería de Docker
         run: docker pull docker.io/library/mariadb:latest
 
       - name: Crear estructura de directorios de volúmenes
-        # Garantiza que los volúmenes existan con los permisos correctos antes de que Compose los monte
         run: |
           mkdir -p ./goobi/config \
                    ./goobi/plugins \
@@ -32,8 +33,10 @@ jobs:
                    ./db/mysql
 
       - name: Desplegar infraestructura con Compose
-        # Utiliza el archivo docker-compose.yml presente en la raíz de tu repositorio
-        run: docker compose up -d
+        # El parámetro -f le indica a Docker la ruta exacta del archivo.
+        # IMPORTANTE: Si guardaste tu docker-compose.yml dentro de una carpeta,
+        # cambia './docker-compose.yml' por './nombre-carpeta/docker-compose.yml'
+        run: docker compose -f ./docker-compose.yml up -d
 
       - name: Verificar el estado de los servicios
         run: docker compose ps
