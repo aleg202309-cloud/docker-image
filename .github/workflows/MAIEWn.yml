@@ -1,45 +1,42 @@
-name: Goobi Fast Deploy & Bootstrap
+name: Goobi Workflow Deploy
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña "Actions"
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  prepare-and-start:
+  deploy-goobi:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
+      - name: 1️⃣ Clonar repositorio
         uses: actions/checkout@v4
 
-      # PASO CLAVE: Preparar carpetas y permisos antes de que Docker toque nada
-      - name: Prepare Local Directories & Permissions
+      - name: 2️⃣ VERIFICAR que el archivo existe (DEBUG)
         run: |
-          echo "Creando estructura de carpetas para Goobi..."
-          mkdir -p ./goobi/config ./goobi/plugins ./goobi/metadata ./goobi/lib ./logs/tomcat/workflow ./db/mysql
+          echo "📂 Listando archivos en la raíz del repositorio..."
+          ls -la
           
-          echo "Ajustando permisos para evitar errores de escritura en el primer arranque..."
-          # El contenedor de Goobi corre con un usuario interno. Necesita permisos para generar los XML por defecto.
+          if [ ! -f "docker-compose.yml" ]; then
+            echo "❌ ERROR CRÍTICO: No encuentro el archivo 'docker-compose.yml' en la raíz."
+            echo "➡️ SOLUCIÓN: Asegúrate de haber hecho 'git add docker-compose.yml', 'git commit' y 'git push'."
+            exit 1
+          else
+            echo "✅ Archivo docker-compose.yml encontrado."
+          fi
+
+      - name: 3️⃣ Preparar carpetas de Goobi
+        run: |
+          mkdir -p ./goobi/config ./goobi/plugins ./goobi/metadata ./goobi/lib ./logs/tomcat/workflow ./db/mysql
           chmod -R 777 ./goobi ./logs ./db
 
-      - name: Pull Official Images (High Speed)
-        run: |
-          echo "Descargando imágenes base (mariadb y goobi)..."
-          docker compose pull --quiet
+      - name: 4️⃣ Descargar imágenes (Sin compilar)
+        run: docker compose pull --quiet
 
-      - name: Start Goobi Stack
-        run: |
-          echo "Levantando contenedores..."
-          docker compose up -d
+      - name: 5️⃣ Levantar contenedores
+        run: docker compose up -d
 
-      - name: Wait for Goobi Bootstrap (The "Slow" Part)
-        run: |
-          echo "Goobi está generando su configuración interna por primera vez. Esto tarda entre 3 y 5 minutos..."
-          # Esperamos hasta que el puerto 8080 responda o hasta que pase un tiempo prudencial
-          timeout 600 bash -c 'while ! curl -s -f http://localhost:8080/workflow/ > /dev/null; do sleep 15; echo "Esperando a que Tomcat responda..."; done'
-          echo "¡Goobi Workflow está listo y respondiendo en el puerto 8080!"
-
-      - name: Show Status
+      - name: 6️⃣ Verificar estado
         if: always()
         run: docker compose ps
