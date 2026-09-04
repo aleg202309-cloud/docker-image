@@ -1,4 +1,4 @@
-name: Empaquetar Stack Completo eScriptorium 26.07
+name: Empaquetar Stack Completo eScriptorium v26.07
 
 on:
   workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
@@ -23,14 +23,14 @@ jobs:
         run: |
           echo "Iniciando descargas de imágenes con versiones específicas..."
           
-          # Base de datos y caché (Esenciales para Celery y PostgreSQL)
+          # Base de datos y caché
           docker pull postgres:15
           docker pull redis:alpine
           
-          # eScriptorium Core y Nginx (NUEVA VERSIÓN ESTABLE 26.07)
-          # Incluye: Kraken 7.1, ontología por documento, corrección de checkpoints y parches de seguridad.
-          docker pull registry.gitlab.com/scripta/escriptorium:26.07
-          docker pull registry.gitlab.com/scripta/escriptorium/nginx:26.07
+          # eScriptorium Core y Nginx (CORREGIDO: se añade la 'v' al tag)
+          # Esta es la versión estable recién publicada con Kraken 7.1 y ontología por documento
+          docker pull registry.gitlab.com/scripta/escriptorium:v26.07
+          docker pull registry.gitlab.com/scripta/escriptorium/nginx:v26.07
           
           # Búsqueda y Correo (versiones estables probadas)
           docker pull docker.elastic.co/elasticsearch/elasticsearch:7.17.4
@@ -45,15 +45,15 @@ jobs:
           docker save \
             postgres:15 \
             redis:alpine \
-            registry.gitlab.com/scripta/escriptorium:26.07 \
-            registry.gitlab.com/scripta/escriptorium/nginx:26.07 \
+            registry.gitlab.com/scripta/escriptorium:v26.07 \
+            registry.gitlab.com/scripta/escriptorium/nginx:v26.07 \
             docker.elastic.co/elasticsearch/elasticsearch:7.17.4 \
             mailhog/mailhog:v1.0.1 \
-            | gzip > escriptorium_stack_26.07.tar.gz
+            | gzip > escriptorium_stack_v26.07.tar.gz
 
       - name: Subir artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: escriptorium-full-stack-26.07
-          path: escriptorium_stack_26.07.tar.gz
+          name: escriptorium-full-stack-v26.07
+          path: escriptorium_stack_v26.07.tar.gz
           retention-days: 7
