@@ -1,0 +1,59 @@
+name: Empaquetar Stack Completo eScriptorium 26.07
+
+on:
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  build-bundle:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Liberar espacio en disco (Ubuntu Runner)
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker system prune -af --volumes
+
+      - name: Ejecutar descargas secuenciales con versiones fijas
+        run: |
+          echo "Iniciando descargas de imágenes con versiones específicas..."
+          
+          # Base de datos y caché (Esenciales para Celery y PostgreSQL)
+          docker pull postgres:15
+          docker pull redis:alpine
+          
+          # eScriptorium Core y Nginx (NUEVA VERSIÓN ESTABLE 26.07)
+          # Incluye: Kraken 7.1, ontología por documento, corrección de checkpoints y parches de seguridad.
+          docker pull registry.gitlab.com/scripta/escriptorium:26.07
+          docker pull registry.gitlab.com/scripta/escriptorium/nginx:26.07
+          
+          # Búsqueda y Correo (versiones estables probadas)
+          docker pull docker.elastic.co/elasticsearch/elasticsearch:7.17.4
+          docker pull mailhog/mailhog:v1.0.1
+
+      - name: Verificar imágenes descargadas
+        run: docker images
+
+      - name: Empaquetar imágenes en un archivo .tar.gz
+        run: |
+          echo "Comprimiendo todas las imágenes descargadas..."
+          docker save \
+            postgres:15 \
+            redis:alpine \
+            registry.gitlab.com/scripta/escriptorium:26.07 \
+            registry.gitlab.com/scripta/escriptorium/nginx:26.07 \
+            docker.elastic.co/elasticsearch/elasticsearch:7.17.4 \
+            mailhog/mailhog:v1.0.1 \
+            | gzip > escriptorium_stack_26.07.tar.gz
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: escriptorium-full-stack-26.07
+          path: escriptorium_stack_26.07.tar.gz
+          retention-days: 7
